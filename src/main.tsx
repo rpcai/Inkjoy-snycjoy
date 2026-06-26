@@ -1,20 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  ArrowLeft,
   Check,
-  Clock3,
   GalleryHorizontalEnd,
   Image,
   Images,
   Loader2,
   LogOut,
   Monitor,
-  Play,
   Plus,
   RefreshCcw,
-  Shuffle,
   Trash2,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { api } from "./lib/api";
 import "./styles.css";
@@ -45,6 +44,8 @@ function App() {
   const [carousels, setCarousels] = useState<Carousel[]>([]);
   const [selectedAlbumId, setSelectedAlbumId] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [albumDetailAlbumId, setAlbumDetailAlbumId] = useState("");
+  const [slideshowEditorOpen, setSlideshowEditorOpen] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]);
   const [pickedItems, setPickedItems] = useState<PickedMediaItem[]>([]);
   const [pickerSession, setPickerSession] = useState<PickerSession | null>(null);
@@ -80,6 +81,12 @@ function App() {
       void loadCarousels(selectedDeviceId);
     }
   }, [selectedDeviceId]);
+
+  useEffect(() => {
+    if (albumDetailAlbumId && !albums.some((album) => album.albumId === albumDetailAlbumId)) {
+      setAlbumDetailAlbumId("");
+    }
+  }, [albumDetailAlbumId, albums]);
 
   async function run<T>(label: string, action: () => Promise<T>) {
     setBusy(label);
@@ -164,6 +171,8 @@ function App() {
       setCarousels([]);
       setPickedItems([]);
       setPickerSession(null);
+      setAlbumDetailAlbumId("");
+      setSlideshowEditorOpen(false);
       setView("home");
     });
   }
@@ -179,6 +188,7 @@ function App() {
       formElement.reset();
       await loadInkjoyData();
       setSelectedAlbumId(created.albumId);
+      setAlbumDetailAlbumId(created.albumId);
     }
   }
 
@@ -198,6 +208,7 @@ function App() {
     const deleted = await run("Deleting album", () => api.deleteAlbum(selectedAlbum.albumId));
     if (deleted) {
       setSelectedAlbumId("");
+      setAlbumDetailAlbumId("");
       await loadInkjoyData();
     }
   }
@@ -285,6 +296,7 @@ function App() {
     );
     if (activated) {
       setNotice("Slideshow saved.");
+      setSlideshowEditorOpen(false);
       await loadCarousels(selectedDeviceId);
     }
   }
@@ -301,9 +313,7 @@ function App() {
     <main className="app-page">
       <header className="navbar">
         <button type="button" className="navbar-brand" onClick={() => setView("home")}>
-          <span className="brand-mark">▣</span>
-          <span className="brand-text">InkJoy</span>
-          <small>Studio</small>
+          <SyncjoyLogo compact />
         </button>
         <span className="home-pill" hidden={view !== "home"}>
           Home
@@ -375,10 +385,14 @@ function App() {
               <AlbumsView
                 albums={albums}
                 selectedAlbumId={selectedAlbumId}
-                selectedAlbum={selectedAlbum}
+                albumDetailAlbumId={albumDetailAlbumId}
                 photos={photos}
                 selectedPhotoIds={selectedPhotoIds}
-                onSelectAlbum={setSelectedAlbumId}
+                onOpenAlbum={(albumId) => {
+                  setSelectedAlbumId(albumId);
+                  setAlbumDetailAlbumId(albumId);
+                }}
+                onBackToAlbums={() => setAlbumDetailAlbumId("")}
                 onCreateAlbum={handleCreateAlbum}
                 onRenameAlbum={() => void handleRenameAlbum()}
                 onDeleteAlbum={() => void handleDeleteAlbum()}
@@ -420,9 +434,12 @@ function App() {
                 selectedDeviceId={selectedDeviceId}
                 selectedDevice={selectedDevice}
                 selectedAlbumId={selectedAlbumId}
+                editorOpen={slideshowEditorOpen}
                 onSelectDevice={setSelectedDeviceId}
                 onSelectAlbum={setSelectedAlbumId}
                 onRefresh={() => selectedDeviceId && void loadCarousels(selectedDeviceId)}
+                onOpenEditor={() => setSlideshowEditorOpen(true)}
+                onCloseEditor={() => setSlideshowEditorOpen(false)}
                 onActivate={handleActivateAlbum}
               />
             ) : null}
@@ -444,15 +461,8 @@ function InkjoyLogin({
 }) {
   return (
     <form className="login-card" onSubmit={onSubmit}>
-      <button type="button" className="login-lang-btn">
-        中文
-      </button>
       <div className="login-logo">
-        <div className="login-logo-row">
-          <span className="brand-mark large">▣</span>
-          <span className="login-logo-word">InkJoy</span>
-        </div>
-        <div className="login-logo-tagline">Studio</div>
+        <SyncjoyLogo />
         <p>Sign in to manage your e-ink frames</p>
       </div>
 
@@ -476,6 +486,27 @@ function InkjoyLogin({
         {busy || "Sign In"}
       </button>
     </form>
+  );
+}
+
+function SyncjoyLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className={`syncjoy-logo ${compact ? "compact" : ""}`} aria-label="InkJoy Syncjoy">
+      <span className="syncjoy-mark" aria-hidden="true">
+        <span className="syncjoy-frame">
+          <span className="syncjoy-ink-line" />
+          <span className="syncjoy-ink-line short" />
+        </span>
+        <span className="syncjoy-photo-petal blue" />
+        <span className="syncjoy-photo-petal red" />
+        <span className="syncjoy-photo-petal yellow" />
+        <span className="syncjoy-photo-petal green" />
+      </span>
+      <span className="syncjoy-wordmark">
+        <span>InkJoy</span>
+        <strong>Syncjoy</strong>
+      </span>
+    </span>
   );
 }
 
@@ -561,16 +592,71 @@ function HomeView(props: {
 function AlbumsView(props: {
   albums: Album[];
   selectedAlbumId: string;
-  selectedAlbum?: Album;
+  albumDetailAlbumId: string;
   photos: AlbumPhoto[];
   selectedPhotoIds: string[];
-  onSelectAlbum: (albumId: string) => void;
+  onOpenAlbum: (albumId: string) => void;
+  onBackToAlbums: () => void;
   onCreateAlbum: (event: React.FormEvent<HTMLFormElement>) => void;
   onRenameAlbum: () => void;
   onDeleteAlbum: () => void;
   onTogglePhoto: (imgId: string) => void;
   onDeletePhotos: () => void;
 }) {
+  const detailAlbum = props.albums.find((album) => album.albumId === props.albumDetailAlbumId);
+
+  if (detailAlbum) {
+    return (
+      <>
+        <div className="screen-header album-detail-header">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={props.onBackToAlbums}>
+            <ArrowLeft size={14} />
+            Back to Albums
+          </button>
+          <div className="action-row">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={props.onRenameAlbum}>
+              Rename
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={props.onDeleteAlbum}>
+              <Trash2 size={14} />
+              Album
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger btn-sm"
+              onClick={props.onDeletePhotos}
+              disabled={!props.selectedPhotoIds.length}
+            >
+              Delete Selected
+            </button>
+          </div>
+        </div>
+
+        <section className="section-card photos-card album-detail-card">
+          <div className="photos-top-bar">
+            <div>
+              <h2>{detailAlbum.albumName || "Album"}</h2>
+              <p className="section-subtitle">{props.photos.length} photo(s)</p>
+            </div>
+          </div>
+          <div className="photo-grid">
+            {props.photos.map((photo) => (
+              <button
+                type="button"
+                key={photo.imgId}
+                className={`photo-card ${props.selectedPhotoIds.includes(photo.imgId) ? "selected" : ""}`}
+                onClick={() => props.onTogglePhoto(photo.imgId)}
+              >
+                {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="" /> : <Image size={24} />}
+              </button>
+            ))}
+          </div>
+          {!props.photos.length ? <div className="empty-state">This album is empty.</div> : null}
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="screen-header">
@@ -590,7 +676,7 @@ function AlbumsView(props: {
             type="button"
             key={album.albumId}
             className={`album-card ${album.albumId === props.selectedAlbumId ? "selected" : ""}`}
-            onClick={() => props.onSelectAlbum(album.albumId)}
+            onClick={() => props.onOpenAlbum(album.albumId)}
           >
             <div className="album-thumb">
               {album.coverImgThumbnail || album.coverImg ? (
@@ -606,47 +692,6 @@ function AlbumsView(props: {
           </button>
         ))}
       </div>
-
-      {props.selectedAlbum ? (
-        <section className="section-card photos-card">
-          <div className="photos-top-bar">
-            <div>
-              <h2>{props.selectedAlbum.albumName || "Album"}</h2>
-              <p className="section-subtitle">{props.photos.length} photo(s)</p>
-            </div>
-            <div className="action-row">
-              <button type="button" className="btn btn-secondary btn-sm" onClick={props.onRenameAlbum}>
-                Rename
-              </button>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={props.onDeleteAlbum}>
-                <Trash2 size={14} />
-                Album
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger btn-sm"
-                onClick={props.onDeletePhotos}
-                disabled={!props.selectedPhotoIds.length}
-              >
-                Delete Selected
-              </button>
-            </div>
-          </div>
-          <div className="photo-grid">
-            {props.photos.map((photo) => (
-              <button
-                type="button"
-                key={photo.imgId}
-                className={`photo-card ${props.selectedPhotoIds.includes(photo.imgId) ? "selected" : ""}`}
-                onClick={() => props.onTogglePhoto(photo.imgId)}
-              >
-                {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="" /> : <Image size={24} />}
-              </button>
-            ))}
-          </div>
-          {!props.photos.length ? <div className="empty-state">This album is empty.</div> : null}
-        </section>
-      ) : null}
     </>
   );
 }
@@ -779,9 +824,12 @@ function SlideshowView(props: {
   selectedDeviceId: string;
   selectedDevice?: Device;
   selectedAlbumId: string;
+  editorOpen: boolean;
   onSelectDevice: (deviceId: string) => void;
   onSelectAlbum: (albumId: string) => void;
   onRefresh: () => void;
+  onOpenEditor: () => void;
+  onCloseEditor: () => void;
   onActivate: (event: React.FormEvent<HTMLFormElement>) => void;
 }) {
   const activeAlbumStrategies = props.carousels.filter(
@@ -807,8 +855,17 @@ function SlideshowView(props: {
 
       <section className="section-card">
         <div className="section-header">
-          <h2>{props.selectedDevice?.deviceName || "Slideshow"}</h2>
-          <span className="timeline-summary">{activeAlbumStrategies.length}/{props.carousels.length} active</span>
+          <div>
+            <h2>{props.selectedDevice?.deviceName || "Slideshow"}</h2>
+            <p className="section-subtitle">One active album slideshow per frame.</p>
+          </div>
+          <div className="action-row">
+            <span className="timeline-summary">{activeAlbumStrategies.length}/{props.carousels.length} active</span>
+            <button type="button" className="btn btn-primary btn-sm" onClick={props.onOpenEditor}>
+              <Plus size={14} />
+              Edit Slideshow
+            </button>
+          </div>
         </div>
 
         <div className="strategy-timeline">
@@ -839,68 +896,6 @@ function SlideshowView(props: {
         </div>
 
         <div className="slideshow-layout">
-          <form className="strategy-form" onSubmit={props.onActivate}>
-            <label>
-              Album
-              <select value={props.selectedAlbumId} onChange={(event) => props.onSelectAlbum(event.target.value)}>
-                {props.albums.map((album) => (
-                  <option key={album.albumId} value={album.albumId}>
-                    {album.albumName || "Untitled"}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Trigger
-              <select name="updateType" defaultValue="INTERVAL">
-                <option value="INTERVAL">Interval</option>
-                <option value="FIXED">Fixed Schedule</option>
-              </select>
-            </label>
-            <label>
-              Start
-              <input name="beginTime" type="time" defaultValue="09:00" />
-            </label>
-            <label>
-              End
-              <input name="endTime" type="time" defaultValue="18:00" />
-            </label>
-            <label>
-              Every (min)
-              <input name="intervalMinutes" type="number" min="5" defaultValue="120" />
-            </label>
-            <label>
-              Repeat every (days)
-              <input name="updateDays" type="number" min="1" defaultValue="1" />
-            </label>
-            <label>
-              Push at
-              <input name="updateTimeList" defaultValue="09:00,18:00" />
-            </label>
-            <label>
-              Play Order
-              <select name="playOrder" defaultValue="SEQUENTIALLY">
-                <option value="SEQUENTIALLY">Sequential</option>
-                <option value="SHUFFLE">Shuffle</option>
-              </select>
-            </label>
-            <label>
-              After display
-              <select name="idle" defaultValue="1">
-                <option value="1">Stay on</option>
-                <option value="0">Sleep</option>
-              </select>
-            </label>
-            <label className="checkbox-row">
-              <input name="playNow" type="checkbox" defaultChecked />
-              Push immediately
-            </label>
-            <button type="submit" className="btn btn-primary">
-              <Plus size={15} />
-              Save Slideshow
-            </button>
-          </form>
-
           <div className="strategy-list">
             {props.carousels.map((carousel) => (
               <div key={carousel.strategyId} className="strategy-card">
@@ -921,10 +916,117 @@ function SlideshowView(props: {
                 </span>
               </div>
             ))}
+            {!props.carousels.length ? <div className="empty-state">No slideshow settings yet.</div> : null}
           </div>
         </div>
       </section>
+
+      {props.editorOpen ? (
+        <div className="modal-overlay" role="presentation" onMouseDown={props.onCloseEditor}>
+          <section
+            className="modal-box"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="slideshow-settings-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <h2 id="slideshow-settings-title">Edit Slideshow</h2>
+                <p className="section-subtitle">Choose the album and refresh schedule for this frame.</p>
+              </div>
+              <button type="button" className="icon-btn" onClick={props.onCloseEditor} aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <SlideshowSettingsForm
+              albums={props.albums}
+              selectedAlbumId={props.selectedAlbumId}
+              onSelectAlbum={props.onSelectAlbum}
+              onActivate={props.onActivate}
+              onCancel={props.onCloseEditor}
+            />
+          </section>
+        </div>
+      ) : null}
     </>
+  );
+}
+
+function SlideshowSettingsForm(props: {
+  albums: Album[];
+  selectedAlbumId: string;
+  onSelectAlbum: (albumId: string) => void;
+  onActivate: (event: React.FormEvent<HTMLFormElement>) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <form className="strategy-form modal-strategy-form" onSubmit={props.onActivate}>
+      <label>
+        Album
+        <select value={props.selectedAlbumId} onChange={(event) => props.onSelectAlbum(event.target.value)}>
+          {props.albums.map((album) => (
+            <option key={album.albumId} value={album.albumId}>
+              {album.albumName || "Untitled"}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Trigger
+        <select name="updateType" defaultValue="INTERVAL">
+          <option value="INTERVAL">Interval</option>
+          <option value="FIXED">Fixed Schedule</option>
+        </select>
+      </label>
+      <label>
+        Start
+        <input name="beginTime" type="time" defaultValue="09:00" />
+      </label>
+      <label>
+        End
+        <input name="endTime" type="time" defaultValue="18:00" />
+      </label>
+      <label>
+        Every (min)
+        <input name="intervalMinutes" type="number" min="5" defaultValue="120" />
+      </label>
+      <label>
+        Repeat every (days)
+        <input name="updateDays" type="number" min="1" defaultValue="1" />
+      </label>
+      <label>
+        Push at
+        <input name="updateTimeList" defaultValue="09:00,18:00" />
+      </label>
+      <label>
+        Play Order
+        <select name="playOrder" defaultValue="SEQUENTIALLY">
+          <option value="SEQUENTIALLY">Sequential</option>
+          <option value="SHUFFLE">Shuffle</option>
+        </select>
+      </label>
+      <label>
+        After display
+        <select name="idle" defaultValue="1">
+          <option value="1">Stay on</option>
+          <option value="0">Sleep</option>
+        </select>
+      </label>
+      <label className="checkbox-row">
+        <input name="playNow" type="checkbox" defaultChecked />
+        Push immediately
+      </label>
+      <div className="modal-actions">
+        <button type="button" className="btn btn-secondary" onClick={props.onCancel}>
+          Cancel
+        </button>
+        <button type="submit" className="btn btn-primary">
+          <Plus size={15} />
+          Save Slideshow
+        </button>
+      </div>
+    </form>
   );
 }
 

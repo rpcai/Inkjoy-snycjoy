@@ -196,23 +196,10 @@ a {
   display: grid;
   gap: 1.25rem;
   width: min(100%, 400px);
-  padding: 3rem 2.75rem 2.5rem;
+  padding: 2.7rem 2.75rem 2.5rem;
   border-radius: 1.75rem;
   background: #fff;
   box-shadow: 0 32px 72px rgb(0 0 0 / 28%);
-}
-
-.login-lang-btn {
-  position: absolute;
-  top: 1.1rem;
-  right: 1.1rem;
-  padding: 0.25rem 0.65rem;
-  border: 1.5px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
 }
 
 .login-logo {
@@ -220,44 +207,149 @@ a {
   margin-bottom: 0.7rem;
 }
 
-.login-logo-row {
-  display: flex;
+.login-logo p {
+  margin-top: 0.85rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.syncjoy-logo {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.7rem;
   color: var(--primary);
 }
 
-.brand-mark {
-  color: currentColor;
-  font-size: 1rem;
+.syncjoy-mark {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+}
+
+.syncjoy-frame {
+  position: absolute;
+  inset: 8px 10px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 6px;
+  border: 2px solid #754c24;
+  border-radius: 4px;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 2px #f2ead2;
+}
+
+.syncjoy-ink-line {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: #2d5a4a;
+}
+
+.syncjoy-ink-line.short {
+  width: 60%;
+}
+
+.syncjoy-photo-petal {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px 9px 4px 9px;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 18%);
+}
+
+.syncjoy-photo-petal.blue {
+  top: 0;
+  left: 16px;
+  background: #4285f4;
+}
+
+.syncjoy-photo-petal.red {
+  top: 16px;
+  right: 0;
+  background: #ea4335;
+}
+
+.syncjoy-photo-petal.yellow {
+  bottom: 0;
+  left: 16px;
+  background: #fbbc04;
+}
+
+.syncjoy-photo-petal.green {
+  top: 16px;
+  left: 0;
+  background: #34a853;
+}
+
+.syncjoy-wordmark {
+  display: grid;
+  gap: 0.08rem;
+  text-align: left;
   line-height: 1;
 }
 
-.brand-mark.large {
-  font-size: 1.75rem;
-}
-
-.login-logo-word {
-  color: var(--primary);
+.syncjoy-wordmark span {
+  color: currentColor;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.35rem;
+  font-size: 1.18rem;
   font-weight: 800;
+}
+
+.syncjoy-wordmark strong {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 850;
   text-transform: uppercase;
 }
 
-.login-logo-tagline {
-  margin-top: 0.1rem;
+.syncjoy-logo.compact {
+  gap: 0.5rem;
+}
+
+.syncjoy-logo.compact .syncjoy-mark {
+  width: 34px;
+  height: 34px;
+}
+
+.syncjoy-logo.compact .syncjoy-frame {
+  inset: 6px 7px;
+  gap: 2px;
+  padding: 4px;
+  border-width: 1.5px;
+  box-shadow: inset 0 0 0 1px #f2ead2;
+}
+
+.syncjoy-logo.compact .syncjoy-ink-line {
+  height: 2px;
+}
+
+.syncjoy-logo.compact .syncjoy-photo-petal {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px 7px 3px 7px;
+}
+
+.syncjoy-logo.compact .syncjoy-photo-petal.blue,
+.syncjoy-logo.compact .syncjoy-photo-petal.yellow {
+  left: 11px;
+}
+
+.syncjoy-logo.compact .syncjoy-photo-petal.red,
+.syncjoy-logo.compact .syncjoy-photo-petal.green {
+  top: 11px;
+}
+
+.syncjoy-logo.compact .syncjoy-wordmark span {
+  color: #fff;
+  font-size: 0.98rem;
+}
+
+.syncjoy-logo.compact .syncjoy-wordmark strong {
+  color: rgb(255 255 255 / 66%);
   font-size: 0.58rem;
-  color: var(--text-muted);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.login-logo p {
-  margin-top: 0.5rem;
-  color: var(--text-muted);
-  font-size: 0.875rem;
 }
 
 .app-page {
@@ -282,29 +374,13 @@ a {
 }
 
 .navbar-brand {
-  display: grid;
-  grid-template-columns: auto auto;
+  display: inline-flex;
   align-items: center;
-  column-gap: 0.35rem;
   border: none;
   background: transparent;
   color: #fff;
   padding: 0;
   line-height: 1;
-}
-
-.brand-text {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.navbar-brand small {
-  grid-column: 2;
-  color: rgb(255 255 255 / 55%);
-  font-size: 0.58rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .home-pill {
@@ -649,6 +725,14 @@ a {
   margin-top: 0.5rem;
 }
 
+.album-detail-header {
+  min-height: 42px;
+}
+
+.album-detail-card {
+  margin-top: 0;
+}
+
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
@@ -849,18 +933,13 @@ a {
 }
 
 .slideshow-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.8fr);
-  gap: 1rem;
+  display: block;
 }
 
 .strategy-form {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 1rem;
 }
 
 .strategy-form .btn {
@@ -922,6 +1001,47 @@ a {
 .status-badge.active {
   background: #dcfce7;
   color: #15803d;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 48%);
+}
+
+.modal-box {
+  width: min(100%, 760px);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 24px 70px rgb(15 23 42 / 35%);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal-strategy-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.modal-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
 }
 
 .empty-state {
