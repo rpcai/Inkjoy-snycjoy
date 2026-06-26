@@ -27,3 +27,14 @@ The current repo state is a planning scaffold. Implementation will start as a lo
 - Storage: browser session/local storage for non-sensitive UI preferences; encrypted, short-lived, httpOnly cookies for sensitive session material; no database for the first release.
 
 See [docs/research.md](docs/research.md), [docs/implementation-plan.md](docs/implementation-plan.md), and [docs/auth-architecture.md](docs/auth-architecture.md).
+
+## Local Development
+
+Copy `.env.example` to `.env` and set Google OAuth values when you are ready to use the Google Photos Picker flow.
+
+```sh
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The local API runs on `http://127.0.0.1:8787` and Vite proxies `/api/*` to it.
