@@ -111,4 +111,5 @@ Implication: the sample validates the server-mediated flow, but it is heavier th
   - fetch short-lived Google media bytes server-side;
   - stream directly into Inkjoy album upload;
   - avoid storing photos or tokens durably.
+- The first implementation should run locally for easier debugging, using the same API boundaries that will later move to Cloudflare Pages Functions.
 - The first product experience should be "select and import now", not background sync, because Picker sessions are user initiated and expire.

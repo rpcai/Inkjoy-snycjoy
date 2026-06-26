@@ -2,16 +2,16 @@
 
 ## Decision
 
-Use Cloudflare Pages Functions as a thin auth and API boundary:
+Use a thin auth and API boundary. Build it locally first for easier debugging, but keep the boundary compatible with Cloudflare Pages Functions:
 
-- The browser submits Inkjoy email/password to a Pages Function over HTTPS.
-- The Function exchanges those credentials for an Inkjoy JWT.
+- The browser submits Inkjoy email/password to the local backend or Pages Function over HTTPS.
+- The backend exchanges those credentials for an Inkjoy JWT.
 - The password is discarded immediately.
-- The Function stores only token material and expiry in a secure, encrypted, httpOnly cookie.
-- Browser JavaScript calls local `/api/*` Functions, not Inkjoy or Google APIs directly.
-- The Functions attach bearer tokens server-side when calling Inkjoy and Google Photos.
+- The backend stores only token material and expiry in a secure, encrypted, httpOnly cookie.
+- Browser JavaScript calls local `/api/*` routes, not Inkjoy or Google APIs directly.
+- The backend attaches bearer tokens server-side when calling Inkjoy and Google Photos.
 
-This still keeps v1 database-free. The cookie is the only persistence mechanism.
+This still keeps v1 database-free. The cookie is the only persistence mechanism, whether running locally or on Cloudflare.
 
 ## Why Not Store Tokens In Browser JavaScript?
 
@@ -46,7 +46,7 @@ Do not include:
 
 ## Function Boundaries
 
-Initial Function routes:
+Initial backend routes:
 
 - `POST /api/inkjoy/login`
 - `POST /api/inkjoy/logout`
@@ -62,4 +62,3 @@ Initial Function routes:
 - `POST /api/import/google-to-inkjoy`
 
 The import route should stream selected Google media to Inkjoy when possible and avoid durable storage.
-
