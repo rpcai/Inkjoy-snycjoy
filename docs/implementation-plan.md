@@ -10,16 +10,22 @@ Build a work-focused single-page app with three primary areas:
 
 The app should avoid a marketing landing page. The first screen should be the management workspace.
 
+Confirmed v1 product constraints:
+
+- On-demand import only. No scheduled or background sync in v1.
+- Images only. Videos and motion photos are unsupported for an e-ink frame and should be filtered out before import.
+- Only one active album carousel per frame. Activating one album carousel should deactivate other album carousels on that frame.
+
 ## Technical Direction
 
 Recommended default architecture:
 
 - Vite + React + TypeScript frontend.
 - Cloudflare Pages deployment.
-- Pages Functions for auth/session and media transfer boundaries.
+- Pages Functions for auth/session, Inkjoy API proxying, and media transfer boundaries.
 - No database for v1.
-- Short-lived httpOnly encrypted cookies for Google OAuth state/session data if using code flow.
-- Inkjoy token handling to be decided after CORS and credential-safety validation.
+- Server-set, secure, httpOnly, encrypted cookies for Inkjoy and Google tokens.
+- Inkjoy email/password are accepted by the app only for login exchange; do not persist the password.
 
 Why this direction:
 
@@ -27,7 +33,10 @@ Why this direction:
 - Google media `baseUrl` requests require OAuth authorization.
 - Inkjoy album upload requires multipart file upload.
 - Cloudflare Functions can stream bytes through without retaining photos.
+- httpOnly cookies minimize repeated logins without exposing bearer tokens to browser JavaScript.
 - Cloudflare Pages keeps deployment simple.
+
+See [auth-architecture.md](auth-architecture.md) for the browser token discussion.
 
 ## Milestones
 
@@ -35,13 +44,13 @@ Why this direction:
 
 - Confirm Inkjoy CORS behavior for login, albums, image upload, and carousel calls.
 - Confirm whether Inkjoy login tokens can be refreshed or only reissued via email/password login.
-- Confirm whether Inkjoy upload accepts only jpg/png or accepts other image MIME types in practice.
+- Confirm whether Inkjoy upload accepts only jpg/png. Treat other image formats as unsupported until proven otherwise.
 - Confirm Cloudflare Function body size and streaming limits against expected Google photo sizes.
 - Test Google OAuth flow in local Pages/Vite environment.
 
 Exit criteria:
 
-- Decide whether Inkjoy calls are browser-direct or routed through Pages Functions.
+- Confirm final proxy shape for Inkjoy calls through Pages Functions.
 - Decide whether the import path can stream Google -> Function -> Inkjoy without buffering whole files.
 
 ### 1. App Foundation
@@ -60,7 +69,8 @@ Exit criteria:
 
 - Implement Inkjoy server selector: Global/Mainland.
 - Implement Inkjoy login.
-- Store session according to chosen auth strategy.
+- Exchange Inkjoy email/password for a bearer token and persist only the token/expiry in an encrypted httpOnly cookie.
+- Clear login form data immediately after token exchange.
 - List devices.
 - List albums with cover thumbnails and counts.
 - Create, rename, delete albums.
@@ -70,11 +80,12 @@ Exit criteria:
 ### 3. Google Photos Picker Import
 
 - Implement Google OAuth.
+- Store Google access token server-side only in the encrypted session cookie.
 - Create Picker session.
 - Show picker link and QR code; do not iframe the picker.
 - Poll session using `pollingConfig.pollInterval` and respect timeout.
 - List selected media items with pagination.
-- Filter first release to supported still image types.
+- Filter v1 import to still image MIME types only.
 - Fetch Google media bytes using the required bearer token.
 - Upload each image into the selected Inkjoy album.
 - Show import queue with per-item status and retry.
@@ -95,7 +106,8 @@ Exit criteria:
   - idle behavior
   - play now
 - Activate/deactivate carousels.
-- Implement "set album active" as a guided action once activation semantics are confirmed.
+- Implement "set album active" by creating/updating the chosen album carousel and deactivating other active album carousels for the same frame.
+- Do not deactivate widget strategies unless later testing shows Inkjoy treats widget and album strategies as mutually exclusive.
 
 ### 5. Deployment and Hardening
 
@@ -114,14 +126,15 @@ Default v1 policy:
 - Do not store photos durably.
 - Do not store Google media metadata beyond the active browser session.
 - Do not store Inkjoy album/photo snapshots durably.
-- Do not store OAuth refresh tokens unless the product later requires scheduled sync and the user explicitly opts in.
-- Prefer session cookies or browser session storage for transient state.
+- Do not store Inkjoy passwords.
+- Do not store OAuth refresh tokens for v1.
+- Store Inkjoy and Google bearer tokens only in secure, encrypted, httpOnly cookies.
+- Use browser session storage only for non-sensitive UI state.
 
 ## Known Risks
 
-- Google Photos Picker is not designed for unattended recurring sync from a Google Photos album.
-- Browser-only implementation may be blocked by CORS or may expose tokens more than desired.
+- Google Photos Picker is intentionally interactive; v1 is on-demand import only.
+- Browser-only token storage would expose tokens to JavaScript, so the recommended implementation uses Pages Functions and httpOnly cookies.
 - Cloudflare request/body limits may require upload chunking or direct browser upload if users pick very large images.
-- Inkjoy carousel "active" semantics need validation: it may allow multiple active strategies, or activating one strategy may not deactivate others.
-- Video and HEIC support are unclear against Inkjoy album upload docs; jpg/png should be the first supported import path.
-
+- Inkjoy carousel activation semantics still need validation, but product behavior should enforce one active album carousel per frame.
+- HEIC support is unclear against Inkjoy album upload docs; jpg/png should be the first supported import path.

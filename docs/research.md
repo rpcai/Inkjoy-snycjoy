@@ -58,7 +58,7 @@ Carousel fields relevant to the UI:
 - Update type: `FIXED` using `updateTimeList`, or `INTERVAL` using `beginTime`, `endTime`, `intervalMinutes`
 - Other controls: `updateDays`, `playOrder` (`SEQUENTIALLY` or `SHUFFLE`), `playNow`, `idle` (`0` sleep, `1` no sleep), `status`
 
-Implication: "Set album as active" should probably create or update a carousel with `albumIdList: [albumId]` and `status: ACTIVE`. We need product confirmation on whether activating one carousel should deactivate other album carousels on the same device.
+Implication: "Set album as active" should create or update a carousel with `albumIdList: [albumId]` and `status: ACTIVE`, then deactivate other active album carousels on the same device.
 
 ## Google Photos Picker API
 
@@ -86,7 +86,7 @@ Important API details:
 - Required media item scope: `https://www.googleapis.com/auth/photospicker.mediaitems.readonly`
 - `PickedMediaItem.mediaFile.baseUrl` requires a valid OAuth bearer token.
 - Base URLs are short-lived; the docs currently state they are active for 60 minutes.
-- Images can be requested with sizing/download parameters. Videos use `dv`, but Inkjoy album upload is documented for jpg/png, so the first version should filter to still images unless we add transcoding.
+- Images can be requested with sizing/download parameters. Videos use `dv`, but Inkjoy is an e-ink frame and videos/motion photos are out of scope; the first version should filter to still images only.
 
 ## Google Sample App
 
@@ -104,10 +104,11 @@ Implication: the sample validates the server-mediated flow, but it is heavier th
 ## Architecture Implications
 
 - A pure static app is possible only if both Inkjoy and Google media fetches support the browser CORS behavior we need and we accept OAuth/Inkjoy bearer tokens in browser JavaScript.
-- A minimal Cloudflare Pages Functions backend is more robust:
-  - keep Google OAuth exchange and tokens off the browser when needed;
+- A minimal Cloudflare Pages Functions backend is the recommended architecture:
+  - exchange Inkjoy email/password for a token without persisting the password;
+  - persist bearer tokens in encrypted, httpOnly cookies;
+  - keep Google OAuth exchange and tokens out of browser JavaScript;
   - fetch short-lived Google media bytes server-side;
   - stream directly into Inkjoy album upload;
   - avoid storing photos or tokens durably.
 - The first product experience should be "select and import now", not background sync, because Picker sessions are user initiated and expire.
-

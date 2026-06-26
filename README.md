@@ -12,6 +12,8 @@ The current repo state is a planning scaffold. Implementation should bias toward
 - Pick photos from Google Photos via the Google Photos Picker API.
 - Upload selected Google Photos media into an Inkjoy album.
 - Create and update Inkjoy carousels, including active status, album source, play order, schedule, interval, timezone, and play-now behavior.
+- Enforce one active album carousel per frame.
+- Import still images only.
 
 ## Proposed Stack
 
@@ -19,7 +21,6 @@ The current repo state is a planning scaffold. Implementation should bias toward
 - UI: custom CSS or Tailwind with lucide-react icons.
 - Runtime target: Cloudflare Pages.
 - Thin backend: Cloudflare Pages Functions only where needed for OAuth callback handling, token cookie handling, and server-side media transfer.
-- Storage: browser session/local storage for non-sensitive UI preferences; encrypted, short-lived, httpOnly cookies for sensitive session material if backend functions are used; no database for the first release.
+- Storage: browser session/local storage for non-sensitive UI preferences; encrypted, short-lived, httpOnly cookies for sensitive session material; no database for the first release.
 
-See [docs/research.md](docs/research.md) and [docs/implementation-plan.md](docs/implementation-plan.md).
-
+See [docs/research.md](docs/research.md), [docs/implementation-plan.md](docs/implementation-plan.md), and [docs/auth-architecture.md](docs/auth-architecture.md).
