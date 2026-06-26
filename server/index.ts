@@ -16,11 +16,16 @@ import { inkjoyRequest, requireInkjoy } from "./inkjoy";
 import { readSession, writeSession, type InkjoyRegion } from "./session";
 
 const app = new Hono();
+const corsOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  process.env.PUBLIC_APP_URL,
+].filter(Boolean) as string[];
 
 app.use(
   "/api/*",
   cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    origin: corsOrigins,
     allowHeaders: ["Content-Type"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
