@@ -9,6 +9,7 @@ const GOOGLE_SCOPE = [
   "profile",
   "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
 ].join(" ");
+const GOOGLE_PICKER_SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
 
 export function getAppUrl() {
   return process.env.PUBLIC_APP_URL || "http://localhost:5173";
@@ -18,12 +19,16 @@ export function getGoogleRedirectUri() {
   return process.env.GOOGLE_REDIRECT_URI || `${getAppUrl()}/api/google/oauth/callback`;
 }
 
+export function getGoogleClientId() {
+  return process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "";
+}
+
 export function isGoogleConfigured() {
-  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  return Boolean(getGoogleClientId());
 }
 
 export function createGoogleAuthUrl(state: string) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientId = getGoogleClientId();
 
   if (!clientId) {
     throw new Error("GOOGLE_CLIENT_ID is not configured");
@@ -41,7 +46,7 @@ export function createGoogleAuthUrl(state: string) {
 }
 
 export async function exchangeGoogleCode(code: string) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientId = getGoogleClientId();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
@@ -79,6 +84,28 @@ export async function exchangeGoogleCode(code: string) {
     expiresAt: Date.now() + (payload.expires_in || 3600) * 1000,
     scope: payload.scope,
     tokenType: payload.token_type,
+  };
+}
+
+export function createGoogleSessionFromBrowserToken(body: {
+  accessToken?: string;
+  expiresIn?: number;
+  scope?: string;
+  tokenType?: string;
+}) {
+  if (!body.accessToken) {
+    throw new Error("Google access token is required");
+  }
+
+  if (body.scope && !body.scope.split(/\s+/).includes(GOOGLE_PICKER_SCOPE)) {
+    throw new Error("Google Photos Picker permission was not granted");
+  }
+
+  return {
+    accessToken: body.accessToken,
+    expiresAt: Date.now() + Math.max(60, Number(body.expiresIn) || 3600) * 1000,
+    scope: body.scope,
+    tokenType: body.tokenType,
   };
 }
 

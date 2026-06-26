@@ -30,10 +30,42 @@ import type {
 
 type View = "home" | "albums" | "google" | "slideshow";
 
+type GoogleTokenResponse = {
+  access_token?: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+  error?: string;
+  error_description?: string;
+};
+
+type GoogleTokenClient = {
+  requestAccessToken: (options?: { prompt?: string }) => void;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        oauth2?: {
+          initTokenClient: (config: {
+            client_id: string;
+            scope: string;
+            callback: (response: GoogleTokenResponse) => void;
+          }) => GoogleTokenClient;
+        };
+      };
+    };
+  }
+}
+
 const defaultSession: SessionState = {
   inkjoy: { connected: false },
   google: { connected: false, configured: false },
 };
+
+const GOOGLE_IDENTITY_SCRIPT_ID = "google-identity-services";
+const GOOGLE_PICKER_SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
 
 function App() {
   const [session, setSession] = useState<SessionState>(defaultSession);
@@ -46,6 +78,9 @@ function App() {
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [albumDetailAlbumId, setAlbumDetailAlbumId] = useState("");
   const [slideshowEditorOpen, setSlideshowEditorOpen] = useState(false);
+  const [localGoogleClientId, setLocalGoogleClientId] = useState(() =>
+    window.localStorage.getItem("syncjoy_google_client_id") || "",
+  );
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]);
   const [pickedItems, setPickedItems] = useState<PickedMediaItem[]>([]);
   const [pickerSession, setPickerSession] = useState<PickerSession | null>(null);
@@ -56,6 +91,14 @@ function App() {
 
   const selectedAlbum = albums.find((album) => album.albumId === selectedAlbumId);
   const selectedDevice = devices.find((device) => device.deviceId === selectedDeviceId);
+  const googleSession = useMemo(
+    () => ({
+      ...session.google,
+      configured: session.google.configured || Boolean(localGoogleClientId),
+      clientId: session.google.clientId || localGoogleClientId || undefined,
+    }),
+    [localGoogleClientId, session.google],
+  );
   const selectedPickedImages = useMemo(
     () =>
       pickedItems.filter((item) =>
@@ -81,6 +124,13 @@ function App() {
       void loadCarousels(selectedDeviceId);
     }
   }, [selectedDeviceId]);
+
+  useEffect(() => {
+    if (session.google.clientId && session.google.clientId !== localGoogleClientId) {
+      setLocalGoogleClientId(session.google.clientId);
+      window.localStorage.setItem("syncjoy_google_client_id", session.google.clientId);
+    }
+  }, [localGoogleClientId, session.google.clientId]);
 
   useEffect(() => {
     if (albumDetailAlbumId && !albums.some((album) => album.albumId === albumDetailAlbumId)) {
@@ -255,6 +305,45 @@ function App() {
     setPickedItems(allItems);
   }
 
+  async function handleConnectGoogle() {
+    if (!googleSession.clientId) {
+      window.location.href = "/api/google/oauth/start";
+      return;
+    }
+
+    const nextSession = await run("Connecting Google", async () => {
+      await loadGoogleIdentityServices();
+      const token = await requestGoogleToken(googleSession.clientId || "");
+
+      if (!token.access_token) {
+        throw new Error(token.error_description || token.error || "Google sign-in did not return an access token");
+      }
+
+      await api.connectGoogleToken({
+        accessToken: token.access_token,
+        expiresIn: token.expires_in,
+        scope: token.scope,
+        tokenType: token.token_type,
+      });
+      return api.session();
+    });
+
+    if (nextSession) {
+      setSession(nextSession);
+      setNotice("Google Photos connected.");
+    }
+  }
+
+  function handleSaveGoogleClientId(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const clientId = String(form.get("googleClientId") || "").trim();
+    if (!clientId) return;
+    window.localStorage.setItem("syncjoy_google_client_id", clientId);
+    setLocalGoogleClientId(clientId);
+    setNotice("Google client ID saved locally.");
+  }
+
   async function handleImport() {
     if (!selectedAlbumId || !selectedPickedImages.length) return;
     const result = await run("Importing images", () =>
@@ -364,7 +453,7 @@ function App() {
                 albums={albums}
                 selectedDeviceId={selectedDeviceId}
                 selectedAlbumId={selectedAlbumId}
-                google={session.google}
+                google={googleSession}
                 pickerSession={pickerSession}
                 pickedItems={pickedItems}
                 importableItems={selectedPickedImages}
@@ -372,9 +461,8 @@ function App() {
                 onSelectDevice={setSelectedDeviceId}
                 onSelectAlbum={setSelectedAlbumId}
                 onRefresh={() => void loadInkjoyData()}
-                onConnectGoogle={() => {
-                  window.location.href = "/api/google/oauth/start";
-                }}
+                onConnectGoogle={() => void handleConnectGoogle()}
+                onSaveGoogleClientId={handleSaveGoogleClientId}
                 onStartPicker={() => void handleCreatePickerSession()}
                 onPollPicker={() => void handlePollPicker()}
                 onImport={() => void handleImport()}
@@ -411,15 +499,14 @@ function App() {
               <GoogleView
                 albums={albums}
                 selectedAlbumId={selectedAlbumId}
-                google={session.google}
+                google={googleSession}
                 pickerSession={pickerSession}
                 pickedItems={pickedItems}
                 importableItems={selectedPickedImages}
                 importResult={importResult}
                 onSelectAlbum={setSelectedAlbumId}
-                onConnect={() => {
-                  window.location.href = "/api/google/oauth/start";
-                }}
+                onConnect={() => void handleConnectGoogle()}
+                onSaveGoogleClientId={handleSaveGoogleClientId}
                 onStartPicker={() => void handleCreatePickerSession()}
                 onPollPicker={() => void handlePollPicker()}
                 onImport={() => void handleImport()}
@@ -510,6 +597,59 @@ function SyncjoyLogo({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function loadGoogleIdentityServices() {
+  if (window.google?.accounts?.oauth2) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const existing = document.getElementById(GOOGLE_IDENTITY_SCRIPT_ID) as HTMLScriptElement | null;
+
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Google sign-in script failed to load")), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = GOOGLE_IDENTITY_SCRIPT_ID;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Google sign-in script failed to load"));
+    document.head.append(script);
+  });
+}
+
+function requestGoogleToken(clientId: string) {
+  return new Promise<GoogleTokenResponse>((resolve, reject) => {
+    const oauth = window.google?.accounts?.oauth2;
+
+    if (!oauth) {
+      reject(new Error("Google sign-in is unavailable"));
+      return;
+    }
+
+    const tokenClient = oauth.initTokenClient({
+      client_id: clientId,
+      scope: GOOGLE_PICKER_SCOPE,
+      callback: (response) => {
+        if (response.error) {
+          reject(new Error(response.error_description || response.error));
+          return;
+        }
+
+        resolve(response);
+      },
+    });
+
+    tokenClient.requestAccessToken({ prompt: "consent" });
+  });
+}
+
 function NavItem(props: {
   view: View;
   current: View;
@@ -543,6 +683,7 @@ function HomeView(props: {
   onSelectAlbum: (albumId: string) => void;
   onRefresh: () => void;
   onConnectGoogle: () => void;
+  onSaveGoogleClientId: (event: React.FormEvent<HTMLFormElement>) => void;
   onStartPicker: () => void;
   onPollPicker: () => void;
   onImport: () => void;
@@ -580,6 +721,7 @@ function HomeView(props: {
           importResult={props.importResult}
           onSelectAlbum={props.onSelectAlbum}
           onConnect={props.onConnectGoogle}
+          onSaveGoogleClientId={props.onSaveGoogleClientId}
           onStartPicker={props.onStartPicker}
           onPollPicker={props.onPollPicker}
           onImport={props.onImport}
@@ -706,6 +848,7 @@ function GoogleView(props: {
   importResult: ImportResult | null;
   onSelectAlbum: (albumId: string) => void;
   onConnect: () => void;
+  onSaveGoogleClientId: (event: React.FormEvent<HTMLFormElement>) => void;
   onStartPicker: () => void;
   onPollPicker: () => void;
   onImport: () => void;
@@ -733,6 +876,7 @@ function GoogleImportBody(props: {
   importResult: ImportResult | null;
   onSelectAlbum: (albumId: string) => void;
   onConnect: () => void;
+  onSaveGoogleClientId: (event: React.FormEvent<HTMLFormElement>) => void;
   onStartPicker: () => void;
   onPollPicker: () => void;
   onImport: () => void;
@@ -766,10 +910,33 @@ function GoogleImportBody(props: {
 
       <div className="picker-workflow">
         {!props.google.connected ? (
-          <button type="button" className="btn btn-primary" onClick={props.onConnect} disabled={!props.google.configured}>
-            <Check size={16} />
-            Connect Google
-          </button>
+          <>
+            {!props.google.configured ? (
+              <form className="google-client-form" onSubmit={props.onSaveGoogleClientId}>
+                <label>
+                  Google OAuth Client ID
+                  <input name="googleClientId" placeholder="1234567890-abc.apps.googleusercontent.com" required />
+                </label>
+                <button type="submit" className="btn btn-secondary">
+                  Save Client ID
+                </button>
+              </form>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={props.onConnect}
+              disabled={!props.google.configured}
+            >
+              <Check size={16} />
+              {props.google.configured ? "Connect Google" : "Google Setup Needed"}
+            </button>
+            {!props.google.configured ? (
+              <p className="setup-hint">
+                Use a Web application OAuth client with http://localhost:5173 as an authorized JavaScript origin.
+              </p>
+            ) : null}
+          </>
         ) : (
           <>
             <button type="button" className="btn btn-primary" onClick={props.onStartPicker}>

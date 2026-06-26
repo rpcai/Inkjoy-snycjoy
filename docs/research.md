@@ -107,7 +107,7 @@ Implication: the sample validates the server-mediated flow, but it is heavier th
 - A minimal Cloudflare Pages Functions backend is the recommended architecture:
   - exchange Inkjoy email/password for a token without persisting the password;
   - persist bearer tokens in encrypted, httpOnly cookies;
-  - keep Google OAuth exchange and tokens out of browser JavaScript;
+  - use Google Identity Services in the browser to obtain a short-lived Picker token, then persist it in the encrypted httpOnly cookie via the backend;
   - fetch short-lived Google media bytes server-side;
   - stream directly into Inkjoy album upload;
   - avoid storing photos or tokens durably.

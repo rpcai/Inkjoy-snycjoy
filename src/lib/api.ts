@@ -75,6 +75,12 @@ export const api = {
     idle: 0 | 1;
     playNow: boolean;
   }) => apiFetch<Carousel>("/api/inkjoy/carousels/activate-album", { method: "POST", body }),
+  connectGoogleToken: (body: {
+    accessToken: string;
+    expiresIn?: number;
+    scope?: string;
+    tokenType?: string;
+  }) => apiFetch<SessionState["google"]>("/api/google/token", { method: "POST", body }),
   createPickerSession: () =>
     apiFetch<PickerSession>("/api/google/picker/sessions", { method: "POST" }),
   getPickerSession: (sessionId: string) =>

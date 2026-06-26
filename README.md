@@ -30,7 +30,12 @@ See [docs/research.md](docs/research.md), [docs/implementation-plan.md](docs/imp
 
 ## Local Development
 
-Copy `.env.example` to `.env` and set Google OAuth values when you are ready to use the Google Photos Picker flow.
+Copy `.env.example` to `.env`. To enable the Google Photos Picker flow, create a Google Cloud OAuth client:
+
+- Enable the Google Photos Picker API for the project.
+- Create an OAuth 2.0 Client ID with application type `Web application`.
+- Add `http://localhost:5173` as an authorized JavaScript origin.
+- Set `GOOGLE_CLIENT_ID` in `.env` to that client ID, or paste it into the Google Photos setup field in the app.
 
 ```sh
 npm install
@@ -38,3 +43,5 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. The local API runs on `http://127.0.0.1:8787` and Vite proxies `/api/*` to it.
+
+The Google access token is kept in the encrypted `syncjoy_session` cookie and expires with Google's token lifetime. No Google refresh token or picked photo bytes are stored durably.

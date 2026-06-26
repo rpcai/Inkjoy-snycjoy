@@ -8,6 +8,7 @@ export type SessionState = {
   google: {
     connected: boolean;
     configured: boolean;
+    clientId?: string;
     expiresAt?: number;
   };
 };

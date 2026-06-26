@@ -4,9 +4,11 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { randomUUID } from "node:crypto";
 import {
+  createGoogleSessionFromBrowserToken,
   createGoogleAuthUrl,
   exchangeGoogleCode,
   fetchGoogleMedia,
+  getGoogleClientId,
   googlePickerRequest,
   isGoogleConfigured,
 } from "./google";
@@ -48,8 +50,13 @@ app.get("/api/session", async (c) => {
           connected: true,
           expiresAt: session.google.expiresAt,
           configured: isGoogleConfigured(),
+          clientId: getGoogleClientId() || undefined,
         }
-      : { connected: false, configured: isGoogleConfigured() },
+      : {
+          connected: false,
+          configured: isGoogleConfigured(),
+          clientId: getGoogleClientId() || undefined,
+        },
   });
 });
 
@@ -315,6 +322,24 @@ app.get("/api/google/oauth/callback", async (c) => {
   delete session.googleOauthState;
   writeSession(c, session);
   return c.redirect("/?google=connected");
+});
+
+app.post("/api/google/token", async (c) => {
+  const body = (await c.req.json()) as {
+    accessToken?: string;
+    expiresIn?: number;
+    scope?: string;
+    tokenType?: string;
+  };
+  const session = await readSession(c);
+  session.google = createGoogleSessionFromBrowserToken(body);
+  writeSession(c, session);
+  return c.json({
+    connected: true,
+    expiresAt: session.google.expiresAt,
+    configured: isGoogleConfigured(),
+    clientId: getGoogleClientId() || undefined,
+  });
 });
 
 app.post("/api/google/logout", async (c) => {
