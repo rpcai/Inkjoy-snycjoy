@@ -5,6 +5,8 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.official.example
+official-inspection/
 *.local
 coverage/
 playwright-report/

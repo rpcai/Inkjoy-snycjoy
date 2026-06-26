@@ -2,14 +2,19 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Check,
+  Clock3,
+  GalleryHorizontalEnd,
   Image,
+  Images,
   Loader2,
   LogOut,
+  Monitor,
   Play,
   Plus,
   RefreshCcw,
   Shuffle,
   Trash2,
+  UploadCloud,
 } from "lucide-react";
 import { api } from "./lib/api";
 import "./styles.css";
@@ -24,6 +29,8 @@ import type {
   SessionState,
 } from "./types";
 
+type View = "home" | "albums" | "google" | "slideshow";
+
 const defaultSession: SessionState = {
   inkjoy: { connected: false },
   google: { connected: false, configured: false },
@@ -31,6 +38,7 @@ const defaultSession: SessionState = {
 
 function App() {
   const [session, setSession] = useState<SessionState>(defaultSession);
+  const [view, setView] = useState<View>("home");
   const [devices, setDevices] = useState<Device[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [photos, setPhotos] = useState<AlbumPhoto[]>([]);
@@ -46,10 +54,7 @@ function App() {
   const [error, setError] = useState("");
 
   const selectedAlbum = albums.find((album) => album.albumId === selectedAlbumId);
-  const activeAlbumCarousel = carousels.find(
-    (carousel) => carousel.status === "ACTIVE" && carousel.albumIdList?.length,
-  );
-
+  const selectedDevice = devices.find((device) => device.deviceId === selectedDeviceId);
   const selectedPickedImages = useMemo(
     () =>
       pickedItems.filter((item) =>
@@ -91,7 +96,7 @@ function App() {
   }
 
   async function boot() {
-    const state = await run("Loading session", () => api.session());
+    const state = await run("Loading", () => api.session());
     if (!state) return;
     setSession(state);
     if (state.inkjoy.connected) {
@@ -100,7 +105,7 @@ function App() {
   }
 
   async function loadInkjoyData() {
-    const data = await run("Refreshing Inkjoy", async () => {
+    const data = await run("Refreshing", async () => {
       const [nextDevices, nextAlbums] = await Promise.all([api.devices(), api.albums()]);
       return { nextDevices, nextAlbums };
     });
@@ -128,7 +133,7 @@ function App() {
   }
 
   async function loadCarousels(deviceId: string) {
-    const nextCarousels = await run("Loading carousels", () => api.carousels(deviceId));
+    const nextCarousels = await run("Loading slideshow", () => api.carousels(deviceId));
     if (nextCarousels) {
       setCarousels(nextCarousels);
     }
@@ -136,26 +141,42 @@ function App() {
 
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const email = String(form.get("email") || "");
     const password = String(form.get("password") || "");
     const region = String(form.get("region") || "global") as "global" | "mainland";
-    const result = await run("Connecting Inkjoy", () => api.loginInkjoy({ email, password, region }));
+    const result = await run("Signing in", () => api.loginInkjoy({ email, password, region }));
     if (!result) return;
-    event.currentTarget.reset();
+    formElement.reset();
     setSession(await api.session());
-    setNotice("Inkjoy connected.");
+    setNotice("Signed in.");
     await loadInkjoyData();
+  }
+
+  async function handleSignOut() {
+    await run("Signing out", async () => {
+      await api.logoutInkjoy();
+      setSession(await api.session());
+      setAlbums([]);
+      setDevices([]);
+      setPhotos([]);
+      setCarousels([]);
+      setPickedItems([]);
+      setPickerSession(null);
+      setView("home");
+    });
   }
 
   async function handleCreateAlbum(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const albumName = String(form.get("albumName") || "").trim();
     if (!albumName) return;
     const created = await run("Creating album", () => api.createAlbum(albumName));
     if (created) {
-      event.currentTarget.reset();
+      formElement.reset();
       await loadInkjoyData();
       setSelectedAlbumId(created.albumId);
     }
@@ -240,7 +261,7 @@ function App() {
     if (!selectedDeviceId || !selectedAlbumId) return;
     const form = new FormData(event.currentTarget);
     const updateType = String(form.get("updateType") || "INTERVAL") as "FIXED" | "INTERVAL";
-    const activated = await run("Activating carousel", () =>
+    const activated = await run("Saving slideshow", () =>
       api.activateAlbum({
         deviceId: selectedDeviceId,
         albumId: selectedAlbumId,
@@ -255,73 +276,103 @@ function App() {
                 .map((item) => item.trim())
                 .filter(Boolean)
             : undefined,
-        beginTime: String(form.get("beginTime") || "08:00"),
-        endTime: String(form.get("endTime") || "22:00"),
-        intervalMinutes: Number(form.get("intervalMinutes") || 60),
+        beginTime: String(form.get("beginTime") || "09:00"),
+        endTime: String(form.get("endTime") || "18:00"),
+        intervalMinutes: Number(form.get("intervalMinutes") || 120),
         idle: Number(form.get("idle") || 1) as 0 | 1,
         playNow: form.get("playNow") === "on",
       }),
     );
     if (activated) {
-      setNotice("Album carousel activated.");
+      setNotice("Slideshow saved.");
       await loadCarousels(selectedDeviceId);
     }
   }
 
-  const isBusy = Boolean(busy);
+  if (!session.inkjoy.connected) {
+    return (
+      <main className="login-page">
+        <InkjoyLogin onSubmit={handleLogin} disabled={Boolean(busy)} busy={busy} />
+      </main>
+    );
+  }
 
   return (
-    <main className="app-shell">
-      <section className="workspace">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">Inkjoy Syncjoy</p>
-            <h1>Frame photo manager</h1>
-          </div>
-          <div className="top-actions">
-            {isBusy ? <span className="status-chip"><Loader2 size={15} />{busy}</span> : null}
-            <button type="button" className="icon-button" onClick={() => void boot()}>
-              <RefreshCcw size={17} />
-              Refresh
-            </button>
-          </div>
-        </header>
+    <main className="app-page">
+      <header className="navbar">
+        <button type="button" className="navbar-brand" onClick={() => setView("home")}>
+          <span className="brand-mark">▣</span>
+          <span className="brand-text">InkJoy</span>
+          <small>Studio</small>
+        </button>
+        <span className="home-pill" hidden={view !== "home"}>
+          Home
+        </span>
+        <div className="navbar-right">
+          {busy ? (
+            <span className="busy-pill">
+              <Loader2 size={14} />
+              {busy}
+            </span>
+          ) : null}
+          <span className="server-tag">🌐 Global Server</span>
+          <button type="button" className="btn-logout" onClick={() => void handleSignOut()}>
+            <LogOut size={14} />
+            Sign Out
+          </button>
+        </div>
+      </header>
 
-        {notice ? <div className="notice success">{notice}</div> : null}
-        {error ? <div className="notice error">{error}</div> : null}
+      <div className="app-layout">
+        <nav className="sidebar">
+          <div className="sidebar-section-label">Manage</div>
+          <NavItem view="albums" current={view} icon={<Images size={15} />} label="Albums" onSelect={setView} />
+          <NavItem
+            view="google"
+            current={view}
+            icon={<UploadCloud size={15} />}
+            label="Google Photos"
+            onSelect={setView}
+          />
+          <NavItem
+            view="slideshow"
+            current={view}
+            icon={<GalleryHorizontalEnd size={15} />}
+            label="Slideshow"
+            onSelect={setView}
+          />
+        </nav>
 
-        {!session.inkjoy.connected ? (
-          <InkjoyLogin onSubmit={handleLogin} disabled={isBusy} />
-        ) : (
-          <>
-            <section className="connection-strip">
-              <div>
-                <strong>Inkjoy</strong>
-                <span>{session.inkjoy.region === "mainland" ? "Mainland China" : "Global"}</span>
-              </div>
-              <div>
-                <strong>Google Photos</strong>
-                <span>{session.google.connected ? "Connected" : "Not connected"}</span>
-              </div>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => void run("Signing out", async () => {
-                  await api.logoutInkjoy();
-                  setSession(await api.session());
-                  setAlbums([]);
-                  setDevices([]);
-                  setPhotos([]);
-                  setCarousels([]);
-                })}
-              >
-                <LogOut size={16} />
-                Sign out
-              </button>
-            </section>
+        <section className="view-container">
+          <div className="view-content">
+            {notice ? <div className="toast toast-success">{notice}</div> : null}
+            {error ? <div className="toast toast-error">{error}</div> : null}
 
-            <section className="grid main-grid">
-              <AlbumPanel
+            {view === "home" ? (
+              <HomeView
+                devices={devices}
+                albums={albums}
+                selectedDeviceId={selectedDeviceId}
+                selectedAlbumId={selectedAlbumId}
+                google={session.google}
+                pickerSession={pickerSession}
+                pickedItems={pickedItems}
+                importableItems={selectedPickedImages}
+                importResult={importResult}
+                onSelectDevice={setSelectedDeviceId}
+                onSelectAlbum={setSelectedAlbumId}
+                onRefresh={() => void loadInkjoyData()}
+                onConnectGoogle={() => {
+                  window.location.href = "/api/google/oauth/start";
+                }}
+                onStartPicker={() => void handleCreatePickerSession()}
+                onPollPicker={() => void handlePollPicker()}
+                onImport={() => void handleImport()}
+              />
+            ) : null}
+
+            {view === "albums" ? (
+              <AlbumsView
                 albums={albums}
                 selectedAlbumId={selectedAlbumId}
                 selectedAlbum={selectedAlbum}
@@ -340,15 +391,18 @@ function App() {
                 }
                 onDeletePhotos={() => void handleDeletePhotos()}
               />
+            ) : null}
 
-              <GooglePanel
-                google={session.google}
+            {view === "google" ? (
+              <GoogleView
                 albums={albums}
                 selectedAlbumId={selectedAlbumId}
+                google={session.google}
                 pickerSession={pickerSession}
                 pickedItems={pickedItems}
                 importableItems={selectedPickedImages}
                 importResult={importResult}
+                onSelectAlbum={setSelectedAlbumId}
                 onConnect={() => {
                   window.location.href = "/api/google/oauth/start";
                 }}
@@ -356,21 +410,25 @@ function App() {
                 onPollPicker={() => void handlePollPicker()}
                 onImport={() => void handleImport()}
               />
+            ) : null}
 
-              <CarouselPanel
+            {view === "slideshow" ? (
+              <SlideshowView
                 devices={devices}
                 albums={albums}
                 carousels={carousels}
                 selectedDeviceId={selectedDeviceId}
+                selectedDevice={selectedDevice}
                 selectedAlbumId={selectedAlbumId}
-                activeCarousel={activeAlbumCarousel}
                 onSelectDevice={setSelectedDeviceId}
+                onSelectAlbum={setSelectedAlbumId}
+                onRefresh={() => selectedDeviceId && void loadCarousels(selectedDeviceId)}
                 onActivate={handleActivateAlbum}
               />
-            </section>
-          </>
-        )}
-      </section>
+            ) : null}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
@@ -378,42 +436,129 @@ function App() {
 function InkjoyLogin({
   onSubmit,
   disabled,
+  busy,
 }: {
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   disabled: boolean;
+  busy: string;
 }) {
   return (
-    <section className="login-shell">
-      <form className="login-panel" onSubmit={onSubmit}>
-        <div>
-          <p className="eyebrow">Connect Inkjoy</p>
-          <h2>Sign in to your frame account</h2>
+    <form className="login-card" onSubmit={onSubmit}>
+      <button type="button" className="login-lang-btn">
+        中文
+      </button>
+      <div className="login-logo">
+        <div className="login-logo-row">
+          <span className="brand-mark large">▣</span>
+          <span className="login-logo-word">InkJoy</span>
         </div>
-        <label>
-          Email
-          <input name="email" type="email" autoComplete="email" required />
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" autoComplete="current-password" required />
-        </label>
-        <label>
-          Server
-          <select name="region" defaultValue="global">
-            <option value="global">Global</option>
-            <option value="mainland">Mainland China</option>
-          </select>
-        </label>
-        <button type="submit" disabled={disabled}>
-          <Check size={17} />
-          Connect
-        </button>
-      </form>
-    </section>
+        <div className="login-logo-tagline">Studio</div>
+        <p>Sign in to manage your e-ink frames</p>
+      </div>
+
+      <label>
+        Email
+        <input name="email" type="email" autoComplete="email" placeholder="user@example.com" required />
+      </label>
+      <label>
+        Password
+        <input name="password" type="password" autoComplete="current-password" placeholder="••••••••" required />
+      </label>
+      <label>
+        Server
+        <select name="region" defaultValue="global">
+          <option value="global">Global Server</option>
+          <option value="mainland">China Mainland Server</option>
+        </select>
+      </label>
+      <button type="submit" className="btn btn-primary btn-primary-block" disabled={disabled}>
+        {busy ? <Loader2 size={15} /> : <Check size={15} />}
+        {busy || "Sign In"}
+      </button>
+    </form>
   );
 }
 
-function AlbumPanel(props: {
+function NavItem(props: {
+  view: View;
+  current: View;
+  icon: React.ReactNode;
+  label: string;
+  onSelect: (view: View) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`nav-item ${props.current === props.view ? "active" : ""}`}
+      onClick={() => props.onSelect(props.view)}
+    >
+      <span className="nav-icon">{props.icon}</span>
+      <span className="nav-label">{props.label}</span>
+    </button>
+  );
+}
+
+function HomeView(props: {
+  devices: Device[];
+  albums: Album[];
+  selectedDeviceId: string;
+  selectedAlbumId: string;
+  google: SessionState["google"];
+  pickerSession: PickerSession | null;
+  pickedItems: PickedMediaItem[];
+  importableItems: PickedMediaItem[];
+  importResult: ImportResult | null;
+  onSelectDevice: (deviceId: string) => void;
+  onSelectAlbum: (albumId: string) => void;
+  onRefresh: () => void;
+  onConnectGoogle: () => void;
+  onStartPicker: () => void;
+  onPollPicker: () => void;
+  onImport: () => void;
+}) {
+  return (
+    <>
+      <section className="section-card">
+        <div className="section-header">
+          <div>
+            <h2>My Frames</h2>
+            <p className="section-subtitle">Select a frame for slideshow setup.</p>
+          </div>
+          <button type="button" className="icon-btn" onClick={props.onRefresh} aria-label="Refresh">
+            <RefreshCcw size={16} />
+          </button>
+        </div>
+        <DeviceGrid
+          devices={props.devices}
+          selectedDeviceId={props.selectedDeviceId}
+          onSelectDevice={props.onSelectDevice}
+        />
+      </section>
+
+      <section className="section-card">
+        <div className="section-header">
+          <h2>Choose from Google Photos</h2>
+        </div>
+        <GoogleImportBody
+          albums={props.albums}
+          selectedAlbumId={props.selectedAlbumId}
+          google={props.google}
+          pickerSession={props.pickerSession}
+          pickedItems={props.pickedItems}
+          importableItems={props.importableItems}
+          importResult={props.importResult}
+          onSelectAlbum={props.onSelectAlbum}
+          onConnect={props.onConnectGoogle}
+          onStartPicker={props.onStartPicker}
+          onPollPicker={props.onPollPicker}
+          onImport={props.onImport}
+        />
+      </section>
+    </>
+  );
+}
+
+function AlbumsView(props: {
   albums: Album[];
   selectedAlbumId: string;
   selectedAlbum?: Album;
@@ -427,89 +572,121 @@ function AlbumPanel(props: {
   onDeletePhotos: () => void;
 }) {
   return (
-    <section className="panel span-2">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Albums</p>
-          <h2>{props.selectedAlbum?.albumName || "Personal albums"}</h2>
-        </div>
-        <div className="button-row">
-          <button type="button" className="ghost-button" onClick={props.onRenameAlbum} disabled={!props.selectedAlbum}>
-            Rename
+    <>
+      <div className="screen-header">
+        <h2>Albums</h2>
+        <form className="new-album-form" onSubmit={props.onCreateAlbum}>
+          <input name="albumName" placeholder="Album name" />
+          <button type="submit" className="btn btn-primary btn-sm">
+            <Plus size={14} />
+            New Album
           </button>
-          <button type="button" className="danger-button" onClick={props.onDeleteAlbum} disabled={!props.selectedAlbum}>
-            <Trash2 size={16} />
-            Album
-          </button>
-        </div>
+        </form>
       </div>
 
-      <form className="inline-form" onSubmit={props.onCreateAlbum}>
-        <input name="albumName" placeholder="New album name" />
-        <button type="submit">
-          <Plus size={16} />
-          Album
-        </button>
-      </form>
-
-      <div className="album-list">
+      <div className="album-grid">
         {props.albums.map((album) => (
           <button
             type="button"
             key={album.albumId}
-            className={`album-tile ${album.albumId === props.selectedAlbumId ? "active" : ""}`}
+            className={`album-card ${album.albumId === props.selectedAlbumId ? "selected" : ""}`}
             onClick={() => props.onSelectAlbum(album.albumId)}
           >
-            <div className="album-cover">
+            <div className="album-thumb">
               {album.coverImgThumbnail || album.coverImg ? (
                 <img src={album.coverImgThumbnail || album.coverImg} alt="" />
               ) : (
-                <Image size={24} />
+                <Image size={30} />
               )}
             </div>
-            <span>{album.albumName || "Untitled"}</span>
-            <small>{album.imgCount || 0} images</small>
+            <div className="album-info">
+              <strong>{album.albumName || "Untitled"}</strong>
+              <span>🖼 {album.imgCount || 0}</span>
+            </div>
           </button>
         ))}
       </div>
 
-      <div className="section-title">
-        <h3>Photos</h3>
-        <button
-          type="button"
-          className="danger-button"
-          onClick={props.onDeletePhotos}
-          disabled={!props.selectedPhotoIds.length}
-        >
-          <Trash2 size={16} />
-          {props.selectedPhotoIds.length || 0}
-        </button>
-      </div>
-
-      <div className="photo-grid">
-        {props.photos.map((photo) => (
-          <button
-            type="button"
-            key={photo.imgId}
-            className={`photo-tile ${props.selectedPhotoIds.includes(photo.imgId) ? "selected" : ""}`}
-            onClick={() => props.onTogglePhoto(photo.imgId)}
-          >
-            {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="" /> : <Image size={24} />}
-          </button>
-        ))}
-      </div>
-    </section>
+      {props.selectedAlbum ? (
+        <section className="section-card photos-card">
+          <div className="photos-top-bar">
+            <div>
+              <h2>{props.selectedAlbum.albumName || "Album"}</h2>
+              <p className="section-subtitle">{props.photos.length} photo(s)</p>
+            </div>
+            <div className="action-row">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={props.onRenameAlbum}>
+                Rename
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={props.onDeleteAlbum}>
+                <Trash2 size={14} />
+                Album
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={props.onDeletePhotos}
+                disabled={!props.selectedPhotoIds.length}
+              >
+                Delete Selected
+              </button>
+            </div>
+          </div>
+          <div className="photo-grid">
+            {props.photos.map((photo) => (
+              <button
+                type="button"
+                key={photo.imgId}
+                className={`photo-card ${props.selectedPhotoIds.includes(photo.imgId) ? "selected" : ""}`}
+                onClick={() => props.onTogglePhoto(photo.imgId)}
+              >
+                {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="" /> : <Image size={24} />}
+              </button>
+            ))}
+          </div>
+          {!props.photos.length ? <div className="empty-state">This album is empty.</div> : null}
+        </section>
+      ) : null}
+    </>
   );
 }
 
-function GooglePanel(props: {
-  google: SessionState["google"];
+function GoogleView(props: {
   albums: Album[];
   selectedAlbumId: string;
+  google: SessionState["google"];
   pickerSession: PickerSession | null;
   pickedItems: PickedMediaItem[];
   importableItems: PickedMediaItem[];
   importResult: ImportResult | null;
+  onSelectAlbum: (albumId: string) => void;
+  onConnect: () => void;
+  onStartPicker: () => void;
+  onPollPicker: () => void;
+  onImport: () => void;
+}) {
+  return (
+    <section className="section-card">
+      <div className="section-header">
+        <div>
+          <h2>Google Photos</h2>
+          <p className="section-subtitle">Pick images and add them to an Inkjoy album.</p>
+        </div>
+      </div>
+      <GoogleImportBody {...props} />
+    </section>
+  );
+}
+
+function GoogleImportBody(props: {
+  albums: Album[];
+  selectedAlbumId: string;
+  google: SessionState["google"];
+  pickerSession: PickerSession | null;
+  pickedItems: PickedMediaItem[];
+  importableItems: PickedMediaItem[];
+  importResult: ImportResult | null;
+  onSelectAlbum: (albumId: string) => void;
   onConnect: () => void;
   onStartPicker: () => void;
   onPollPicker: () => void;
@@ -518,172 +695,281 @@ function GooglePanel(props: {
   const targetAlbum = props.albums.find((album) => album.albumId === props.selectedAlbumId);
 
   return (
-    <section className="panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Google Photos</p>
-          <h2>{props.google.connected ? "Picker import" : "Connect"}</h2>
+    <div className="google-panel">
+      <div className="album-source-panel">
+        <div className="album-source-label">Target album</div>
+        <div className="inline-album-scroll">
+          {props.albums.map((album) => (
+            <button
+              type="button"
+              key={album.albumId}
+              className={`inline-album-card ${album.albumId === props.selectedAlbumId ? "selected" : ""}`}
+              onClick={() => props.onSelectAlbum(album.albumId)}
+            >
+              <div className="inline-album-thumb">
+                {album.coverImgThumbnail || album.coverImg ? (
+                  <img src={album.coverImgThumbnail || album.coverImg} alt="" />
+                ) : (
+                  <Image size={22} />
+                )}
+              </div>
+              <span>{album.albumName || "Untitled"}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {!props.google.connected ? (
-        <button type="button" onClick={props.onConnect} disabled={!props.google.configured}>
-          <Check size={17} />
-          Connect Google
-        </button>
-      ) : (
-        <div className="stack">
-          <button type="button" onClick={props.onStartPicker}>
-            <Image size={17} />
-            Pick Images
+      <div className="picker-workflow">
+        {!props.google.connected ? (
+          <button type="button" className="btn btn-primary" onClick={props.onConnect} disabled={!props.google.configured}>
+            <Check size={16} />
+            Connect Google
           </button>
-          {props.pickerSession ? (
-            <div className="picker-card">
-              <a href={props.pickerSession.pickerUri} target="_blank" rel="noreferrer">
-                Open Picker
-              </a>
-              <button type="button" className="ghost-button" onClick={props.onPollPicker}>
-                <RefreshCcw size={16} />
-                Check
-              </button>
-              <span>{props.pickerSession.mediaItemsSet ? "Selection ready" : "Waiting"}</span>
+        ) : (
+          <>
+            <button type="button" className="btn btn-primary" onClick={props.onStartPicker}>
+              <UploadCloud size={16} />
+              Pick Images
+            </button>
+            {props.pickerSession ? (
+              <div className="picker-status">
+                <a href={props.pickerSession.pickerUri} target="_blank" rel="noreferrer">
+                  Open Picker
+                </a>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={props.onPollPicker}>
+                  <RefreshCcw size={14} />
+                  Check
+                </button>
+                <span>{props.pickerSession.mediaItemsSet ? "Ready" : "Waiting"}</span>
+              </div>
+            ) : null}
+            <div className="stat-row">
+              <div>
+                <strong>{props.pickedItems.length}</strong>
+                <span>Selected</span>
+              </div>
+              <div>
+                <strong>{props.importableItems.length}</strong>
+                <span>Images</span>
+              </div>
+              <div>
+                <strong>{props.importResult?.imported || 0}</strong>
+                <span>Imported</span>
+              </div>
             </div>
-          ) : null}
-
-          <div className="stat-grid">
-            <div>
-              <strong>{props.pickedItems.length}</strong>
-              <span>Selected</span>
-            </div>
-            <div>
-              <strong>{props.importableItems.length}</strong>
-              <span>Images</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={props.onImport}
-            disabled={!props.selectedAlbumId || !props.importableItems.length}
-          >
-            <Plus size={17} />
-            Import to {targetAlbum?.albumName || "album"}
-          </button>
-
-          {props.importResult ? (
-            <div className="result-box">
-              <strong>{props.importResult.imported} imported</strong>
-              <span>{props.importResult.skipped} skipped</span>
-            </div>
-          ) : null}
-        </div>
-      )}
-    </section>
+            <button
+              type="button"
+              className="btn btn-success btn-send-cta"
+              onClick={props.onImport}
+              disabled={!targetAlbum || !props.importableItems.length}
+            >
+              Add to {targetAlbum?.albumName || "Album"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
-function CarouselPanel(props: {
+function SlideshowView(props: {
   devices: Device[];
   albums: Album[];
   carousels: Carousel[];
   selectedDeviceId: string;
+  selectedDevice?: Device;
   selectedAlbumId: string;
-  activeCarousel?: Carousel;
   onSelectDevice: (deviceId: string) => void;
+  onSelectAlbum: (albumId: string) => void;
+  onRefresh: () => void;
   onActivate: (event: React.FormEvent<HTMLFormElement>) => void;
 }) {
-  const selectedAlbum = props.albums.find((album) => album.albumId === props.selectedAlbumId);
+  const activeAlbumStrategies = props.carousels.filter(
+    (carousel) => carousel.status === "ACTIVE" && carousel.albumIdList?.length,
+  );
 
   return (
-    <section className="panel span-3">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Carousels</p>
-          <h2>{props.activeCarousel ? "Active album carousel" : "Frame playback"}</h2>
-        </div>
-        <select value={props.selectedDeviceId} onChange={(event) => props.onSelectDevice(event.target.value)}>
-          {props.devices.map((device) => (
-            <option key={device.deviceId} value={device.deviceId}>
-              {device.deviceName || device.deviceId}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="carousel-grid">
-        <form className="carousel-form" onSubmit={props.onActivate}>
-          <label>
-            Album
-            <input value={selectedAlbum?.albumName || ""} readOnly />
-          </label>
-          <label>
-            Play order
-            <select name="playOrder" defaultValue="SEQUENTIALLY">
-              <option value="SEQUENTIALLY">Sequential</option>
-              <option value="SHUFFLE">Shuffle</option>
-            </select>
-          </label>
-          <label>
-            Update type
-            <select name="updateType" defaultValue="INTERVAL">
-              <option value="INTERVAL">Interval</option>
-              <option value="FIXED">Fixed times</option>
-            </select>
-          </label>
-          <label>
-            Every days
-            <input name="updateDays" type="number" min="1" defaultValue="1" />
-          </label>
-          <label>
-            Begin
-            <input name="beginTime" type="time" defaultValue="08:00" />
-          </label>
-          <label>
-            End
-            <input name="endTime" type="time" defaultValue="22:00" />
-          </label>
-          <label>
-            Interval minutes
-            <input name="intervalMinutes" type="number" min="5" defaultValue="60" />
-          </label>
-          <label>
-            Fixed times
-            <input name="updateTimeList" defaultValue="08:00,20:00" />
-          </label>
-          <label>
-            Idle
-            <select name="idle" defaultValue="1">
-              <option value="1">Stay awake</option>
-              <option value="0">Sleep</option>
-            </select>
-          </label>
-          <label className="checkbox-row">
-            <input name="playNow" type="checkbox" defaultChecked />
-            Play now
-          </label>
-          <button type="submit" disabled={!props.selectedDeviceId || !props.selectedAlbumId}>
-            <Play size={17} />
-            Set Active
+    <>
+      <section className="section-card">
+        <div className="section-header">
+          <h2>Select Frame</h2>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={props.onRefresh}>
+            <RefreshCcw size={14} />
+            Refresh
           </button>
-        </form>
+        </div>
+        <DeviceGrid
+          devices={props.devices}
+          selectedDeviceId={props.selectedDeviceId}
+          onSelectDevice={props.onSelectDevice}
+        />
+      </section>
 
-        <div className="carousel-list">
-          {props.carousels.map((carousel) => (
-            <div key={carousel.strategyId} className={`carousel-item ${carousel.status === "ACTIVE" ? "active" : ""}`}>
-              <div>
-                <strong>
-                  {carousel.albumList?.map((album) => album.albumName).join(", ") ||
-                    carousel.widgetKey ||
-                    carousel.strategyId}
-                </strong>
-                <span>{carousel.status || "UNKNOWN"} · {carousel.playOrder || "ORDER"}</span>
+      <section className="section-card">
+        <div className="section-header">
+          <h2>{props.selectedDevice?.deviceName || "Slideshow"}</h2>
+          <span className="timeline-summary">{activeAlbumStrategies.length}/{props.carousels.length} active</span>
+        </div>
+
+        <div className="strategy-timeline">
+          <div className="timeline-title">Today&apos;s Schedule</div>
+          {activeAlbumStrategies.length ? (
+            activeAlbumStrategies.map((strategy) => (
+              <div className="timeline-row" key={strategy.strategyId}>
+                <span>● {strategy.albumList?.map((album) => album.albumName).join(", ") || "Album"}</span>
+                <div className="timeline-track">
+                  {[9, 11, 13, 15, 17].map((hour) => (
+                    <i key={hour} style={{ left: `${(hour / 24) * 100}%` }} />
+                  ))}
+                </div>
+                <span>
+                  Every {strategy.intervalMinutes || 120} min · {strategy.beginTime || "09:00"}–
+                  {strategy.endTime || "18:00"}
+                </span>
               </div>
-              {carousel.playOrder === "SHUFFLE" ? <Shuffle size={18} /> : <Play size={18} />}
-            </div>
-          ))}
+            ))
+          ) : (
+            <div className="empty-state">No active slideshow schedule.</div>
+          )}
+          <div className="timeline-axis">
+            {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((hour) => (
+              <span key={hour}>{hour}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="slideshow-layout">
+          <form className="strategy-form" onSubmit={props.onActivate}>
+            <label>
+              Album
+              <select value={props.selectedAlbumId} onChange={(event) => props.onSelectAlbum(event.target.value)}>
+                {props.albums.map((album) => (
+                  <option key={album.albumId} value={album.albumId}>
+                    {album.albumName || "Untitled"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Trigger
+              <select name="updateType" defaultValue="INTERVAL">
+                <option value="INTERVAL">Interval</option>
+                <option value="FIXED">Fixed Schedule</option>
+              </select>
+            </label>
+            <label>
+              Start
+              <input name="beginTime" type="time" defaultValue="09:00" />
+            </label>
+            <label>
+              End
+              <input name="endTime" type="time" defaultValue="18:00" />
+            </label>
+            <label>
+              Every (min)
+              <input name="intervalMinutes" type="number" min="5" defaultValue="120" />
+            </label>
+            <label>
+              Repeat every (days)
+              <input name="updateDays" type="number" min="1" defaultValue="1" />
+            </label>
+            <label>
+              Push at
+              <input name="updateTimeList" defaultValue="09:00,18:00" />
+            </label>
+            <label>
+              Play Order
+              <select name="playOrder" defaultValue="SEQUENTIALLY">
+                <option value="SEQUENTIALLY">Sequential</option>
+                <option value="SHUFFLE">Shuffle</option>
+              </select>
+            </label>
+            <label>
+              After display
+              <select name="idle" defaultValue="1">
+                <option value="1">Stay on</option>
+                <option value="0">Sleep</option>
+              </select>
+            </label>
+            <label className="checkbox-row">
+              <input name="playNow" type="checkbox" defaultChecked />
+              Push immediately
+            </label>
+            <button type="submit" className="btn btn-primary">
+              <Plus size={15} />
+              Save Slideshow
+            </button>
+          </form>
+
+          <div className="strategy-list">
+            {props.carousels.map((carousel) => (
+              <div key={carousel.strategyId} className="strategy-card">
+                <div>
+                  <strong>
+                    {carousel.albumList?.map((album) => album.albumName).join(", ") ||
+                      carousel.widgetKey ||
+                      "Slideshow"}
+                  </strong>
+                  <span>
+                    Every {carousel.intervalMinutes || 120} min, {carousel.beginTime || "09:00"}-
+                    {carousel.endTime || "18:00"} ·{" "}
+                    {carousel.playOrder === "SHUFFLE" ? "Shuffle" : "Sequential"}
+                  </span>
+                </div>
+                <span className={`status-badge ${carousel.status === "ACTIVE" ? "active" : ""}`}>
+                  {carousel.status === "ACTIVE" ? "Active" : "Inactive"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function DeviceGrid(props: {
+  devices: Device[];
+  selectedDeviceId: string;
+  onSelectDevice: (deviceId: string) => void;
+}) {
+  if (!props.devices.length) {
+    return <div className="empty-state">No linked devices.</div>;
+  }
+
+  return (
+    <div className="device-grid">
+      {props.devices.map((device) => (
+        <DeviceCard
+          key={device.deviceId}
+          device={device}
+          selected={device.deviceId === props.selectedDeviceId}
+          onClick={() => props.onSelectDevice(device.deviceId)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DeviceCard({ device, selected, onClick }: { device: Device; selected: boolean; onClick: () => void }) {
+  const currentStatus = (device as Device & { currentStatus?: { battery?: number } }).currentStatus;
+  const battery = currentStatus?.battery;
+
+  return (
+    <button type="button" className={`device-card ${selected ? "selected" : ""}`} onClick={onClick}>
+      {selected ? <span className="selected-badge">✓</span> : null}
+      <div className="device-frame-box">
+        <div className={`device-frame ${device.orientation === 90 || device.orientation === 270 ? "landscape" : ""}`}>
+          {device.lastPlayThumbnailUrl ? <img src={device.lastPlayThumbnailUrl} alt="" /> : <Monitor size={34} />}
         </div>
       </div>
-    </section>
+      <strong>{device.deviceName || "Inkjoy"}</strong>
+      <span className="device-meta">
+        <i className={device.status === "ONLINE" ? "online-dot" : "offline-dot"} />
+        {device.status === "ONLINE" ? "Online" : device.status || "Offline"}
+        {typeof battery === "number" ? ` · ${battery}%` : ""}
+      </span>
+    </button>
   );
 }
 
