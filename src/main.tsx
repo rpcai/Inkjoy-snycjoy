@@ -142,6 +142,17 @@ function App() {
     }
   }, [albumDetailAlbumId, albums]);
 
+  useEffect(() => {
+    if (!pickerModalOpen || !pickerSession || pickerSession.mediaItemsSet) return;
+
+    const pollMs = parsePollingInterval(pickerSession.pollingConfig?.pollInterval);
+    const timer = window.setInterval(() => {
+      void pollPickerSession(pickerSession.id);
+    }, pollMs);
+
+    return () => window.clearInterval(timer);
+  }, [pickerModalOpen, pickerSession]);
+
   async function run<T>(label: string, action: () => Promise<T>) {
     setBusy(label);
     setError("");
@@ -282,15 +293,19 @@ function App() {
     const created = await run("Starting Picker", () => api.createPickerSession());
     if (created) {
       setPickerSession(created);
-      setPickedItems([]);
       setImportResult(null);
       setPickerModalOpen(true);
+      window.setTimeout(() => handleOpenPickerWindow(created), 0);
     }
   }
 
   async function handlePollPicker() {
     if (!pickerSession) return;
-    const nextSession = await run("Checking Picker", () => api.getPickerSession(pickerSession.id));
+    await pollPickerSession(pickerSession.id);
+  }
+
+  async function pollPickerSession(sessionId: string) {
+    const nextSession = await run("Checking Picker", () => api.getPickerSession(sessionId));
     if (!nextSession) return;
     setPickerSession(nextSession);
     if (nextSession.mediaItemsSet) {
@@ -298,9 +313,9 @@ function App() {
     }
   }
 
-  function handleOpenPickerWindow() {
-    if (!pickerSession?.pickerUri) return;
-    window.open(toAutoclosePickerUri(pickerSession.pickerUri), "syncjoy-google-picker", "popup,width=1120,height=820");
+  function handleOpenPickerWindow(nextSession = pickerSession) {
+    if (!nextSession?.pickerUri) return;
+    window.open(toAutoclosePickerUri(nextSession.pickerUri), "syncjoy-google-picker", "popup,width=1120,height=820");
   }
 
   async function loadPickedItems(sessionId: string) {
@@ -362,9 +377,44 @@ function App() {
     if (result) {
       setImportResult(result);
       setNotice(`Imported ${result.imported} image${result.imported === 1 ? "" : "s"}.`);
+      const importedItems = selectedPickedImages.slice(0, result.imported);
+      if (importedItems.length) {
+        applyLocalImportPreview(selectedAlbumId, importedItems);
+      }
       await loadPhotos(selectedAlbumId);
+      await loadInkjoyData();
+      setPickedItems([]);
+      setPickerSession(null);
       setPickerModalOpen(false);
     }
+  }
+
+  function applyLocalImportPreview(albumId: string, importedItems: PickedMediaItem[]) {
+    const lastImported = importedItems.at(-1);
+    const thumbnailUrl = lastImported?.mediaFile?.baseUrl
+      ? api.googleThumbnailUrl(lastImported.mediaFile.baseUrl)
+      : undefined;
+
+    setAlbums((currentAlbums) =>
+      currentAlbums.map((album) =>
+        album.albumId === albumId
+          ? {
+              ...album,
+              imgCount: (album.imgCount || 0) + importedItems.length,
+              coverImgThumbnail: thumbnailUrl || album.coverImgThumbnail,
+              coverImg: thumbnailUrl || album.coverImg,
+            }
+          : album,
+      ),
+    );
+
+    setPhotos((currentPhotos) => [
+      ...importedItems.map((item) => ({
+        imgId: `google-${item.id}`,
+        thumbnailUrl: item.mediaFile?.baseUrl ? api.googleThumbnailUrl(item.mediaFile.baseUrl) : undefined,
+      })),
+      ...currentPhotos,
+    ]);
   }
 
   async function handleActivateAlbum(event: React.FormEvent<HTMLFormElement>) {
@@ -677,6 +727,12 @@ function toAutoclosePickerUri(pickerUri: string) {
     ? url.pathname
     : `${url.pathname.replace(/\/$/, "")}/autoclose`;
   return url.toString();
+}
+
+function parsePollingInterval(interval?: string) {
+  if (!interval) return 4000;
+  const seconds = Number(interval.replace(/s$/, ""));
+  return Number.isFinite(seconds) ? Math.max(1500, seconds * 1000) : 4000;
 }
 
 function NavItem(props: {
@@ -1012,7 +1068,7 @@ function GoogleImportBody(props: {
                   onClick={props.pickerSession ? props.onOpenPickerModal : props.onStartPicker}
                 >
                   <UploadCloud size={16} />
-                  {props.pickerSession ? "Continue Picking" : "Pick Images"}
+                  {props.pickerSession ? "Pick More Images" : "Pick Images"}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={props.onConnect}>
                   Reconnect
@@ -1021,20 +1077,13 @@ function GoogleImportBody(props: {
               {props.pickerSession ? (
                 <div className="picker-status">
                   <span>{props.pickerSession.mediaItemsSet ? "Ready to import" : "Waiting for Google Photos"}</span>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={props.onPollPicker}>
-                    <RefreshCcw size={14} />
-                    Check
-                  </button>
+                  <span>Selection updates automatically while the picker panel is open.</span>
                 </div>
               ) : null}
               <div className="stat-row">
                 <div>
                   <strong>{props.pickedItems.length}</strong>
                   <span>Selected</span>
-                </div>
-                <div>
-                  <strong>{props.importableItems.length}</strong>
-                  <span>Images</span>
                 </div>
                 <div>
                   <strong>{props.importResult?.imported || 0}</strong>
@@ -1061,7 +1110,6 @@ function GoogleImportBody(props: {
           items={props.importableItems}
           targetAlbumName={targetAlbum?.albumName}
           onOpenPicker={props.onOpenPickerWindow}
-          onPoll={props.onPollPicker}
           onImport={props.onImport}
           onClose={props.onClosePickerModal}
         />
@@ -1075,7 +1123,6 @@ function PickerSessionModal(props: {
   items: PickedMediaItem[];
   targetAlbumName?: string;
   onOpenPicker: () => void;
-  onPoll: () => void;
   onImport: () => void;
   onClose: () => void;
 }) {
@@ -1104,10 +1151,6 @@ function PickerSessionModal(props: {
           <button type="button" className="btn btn-primary" onClick={props.onOpenPicker}>
             <UploadCloud size={16} />
             Open Google Photos
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={props.onPoll}>
-            <RefreshCcw size={15} />
-            Check Selection
           </button>
         </div>
 
