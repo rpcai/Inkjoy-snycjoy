@@ -149,12 +149,12 @@ export async function googlePickerRequest<T>(
   return payload;
 }
 
-export async function fetchGoogleMedia(session: AppSession, baseUrl: string) {
+export async function fetchGoogleMedia(session: AppSession, baseUrl: string, size = "d") {
   requireGoogle(session);
 
   const url = new URL(baseUrl);
   if (!url.search) {
-    url.search = "=d";
+    url.search = `=${size}`;
   }
 
   return fetch(url.toString(), {

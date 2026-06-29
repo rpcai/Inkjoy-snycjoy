@@ -78,6 +78,7 @@ function App() {
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [albumDetailAlbumId, setAlbumDetailAlbumId] = useState("");
   const [slideshowEditorOpen, setSlideshowEditorOpen] = useState(false);
+  const [pickerModalOpen, setPickerModalOpen] = useState(false);
   const [localGoogleClientId, setLocalGoogleClientId] = useState(() =>
     window.localStorage.getItem("syncjoy_google_client_id") || "",
   );
@@ -96,6 +97,9 @@ function App() {
       ...session.google,
       configured: session.google.configured || Boolean(localGoogleClientId),
       clientId: session.google.clientId || localGoogleClientId || undefined,
+      expired: session.google.expired || Boolean(session.google.expiresAt && session.google.expiresAt <= Date.now()),
+      connected:
+        session.google.connected && !Boolean(session.google.expiresAt && session.google.expiresAt <= Date.now()),
     }),
     [localGoogleClientId, session.google],
   );
@@ -223,6 +227,7 @@ function App() {
       setPickerSession(null);
       setAlbumDetailAlbumId("");
       setSlideshowEditorOpen(false);
+      setPickerModalOpen(false);
       setView("home");
     });
   }
@@ -279,7 +284,7 @@ function App() {
       setPickerSession(created);
       setPickedItems([]);
       setImportResult(null);
-      window.open(created.pickerUri, "_blank", "noopener,noreferrer");
+      setPickerModalOpen(true);
     }
   }
 
@@ -291,6 +296,11 @@ function App() {
     if (nextSession.mediaItemsSet) {
       await loadPickedItems(nextSession.id);
     }
+  }
+
+  function handleOpenPickerWindow() {
+    if (!pickerSession?.pickerUri) return;
+    window.open(toAutoclosePickerUri(pickerSession.pickerUri), "syncjoy-google-picker", "popup,width=1120,height=820");
   }
 
   async function loadPickedItems(sessionId: string) {
@@ -353,6 +363,7 @@ function App() {
       setImportResult(result);
       setNotice(`Imported ${result.imported} image${result.imported === 1 ? "" : "s"}.`);
       await loadPhotos(selectedAlbumId);
+      setPickerModalOpen(false);
     }
   }
 
@@ -455,15 +466,20 @@ function App() {
                 selectedAlbumId={selectedAlbumId}
                 google={googleSession}
                 pickerSession={pickerSession}
+                pickerModalOpen={pickerModalOpen}
                 pickedItems={pickedItems}
                 importableItems={selectedPickedImages}
                 importResult={importResult}
+                targetAlbumPhotos={photos}
                 onSelectDevice={setSelectedDeviceId}
                 onSelectAlbum={setSelectedAlbumId}
                 onRefresh={() => void loadInkjoyData()}
                 onConnectGoogle={() => void handleConnectGoogle()}
                 onSaveGoogleClientId={handleSaveGoogleClientId}
                 onStartPicker={() => void handleCreatePickerSession()}
+                onOpenPickerModal={() => setPickerModalOpen(true)}
+                onClosePickerModal={() => setPickerModalOpen(false)}
+                onOpenPickerWindow={handleOpenPickerWindow}
                 onPollPicker={() => void handlePollPicker()}
                 onImport={() => void handleImport()}
               />
@@ -501,13 +517,18 @@ function App() {
                 selectedAlbumId={selectedAlbumId}
                 google={googleSession}
                 pickerSession={pickerSession}
+                pickerModalOpen={pickerModalOpen}
                 pickedItems={pickedItems}
                 importableItems={selectedPickedImages}
                 importResult={importResult}
+                targetAlbumPhotos={photos}
                 onSelectAlbum={setSelectedAlbumId}
                 onConnect={() => void handleConnectGoogle()}
                 onSaveGoogleClientId={handleSaveGoogleClientId}
                 onStartPicker={() => void handleCreatePickerSession()}
+                onOpenPickerModal={() => setPickerModalOpen(true)}
+                onClosePickerModal={() => setPickerModalOpen(false)}
+                onOpenPickerWindow={handleOpenPickerWindow}
                 onPollPicker={() => void handlePollPicker()}
                 onImport={() => void handleImport()}
               />
@@ -650,6 +671,14 @@ function requestGoogleToken(clientId: string) {
   });
 }
 
+function toAutoclosePickerUri(pickerUri: string) {
+  const url = new URL(pickerUri);
+  url.pathname = url.pathname.endsWith("/autoclose")
+    ? url.pathname
+    : `${url.pathname.replace(/\/$/, "")}/autoclose`;
+  return url.toString();
+}
+
 function NavItem(props: {
   view: View;
   current: View;
@@ -676,15 +705,20 @@ function HomeView(props: {
   selectedAlbumId: string;
   google: SessionState["google"];
   pickerSession: PickerSession | null;
+  pickerModalOpen: boolean;
   pickedItems: PickedMediaItem[];
   importableItems: PickedMediaItem[];
   importResult: ImportResult | null;
+  targetAlbumPhotos: AlbumPhoto[];
   onSelectDevice: (deviceId: string) => void;
   onSelectAlbum: (albumId: string) => void;
   onRefresh: () => void;
   onConnectGoogle: () => void;
   onSaveGoogleClientId: (event: React.FormEvent<HTMLFormElement>) => void;
   onStartPicker: () => void;
+  onOpenPickerModal: () => void;
+  onClosePickerModal: () => void;
+  onOpenPickerWindow: () => void;
   onPollPicker: () => void;
   onImport: () => void;
 }) {
@@ -716,13 +750,18 @@ function HomeView(props: {
           selectedAlbumId={props.selectedAlbumId}
           google={props.google}
           pickerSession={props.pickerSession}
+          pickerModalOpen={props.pickerModalOpen}
           pickedItems={props.pickedItems}
           importableItems={props.importableItems}
           importResult={props.importResult}
+          targetAlbumPhotos={props.targetAlbumPhotos}
           onSelectAlbum={props.onSelectAlbum}
           onConnect={props.onConnectGoogle}
           onSaveGoogleClientId={props.onSaveGoogleClientId}
           onStartPicker={props.onStartPicker}
+          onOpenPickerModal={props.onOpenPickerModal}
+          onClosePickerModal={props.onClosePickerModal}
+          onOpenPickerWindow={props.onOpenPickerWindow}
           onPollPicker={props.onPollPicker}
           onImport={props.onImport}
         />
@@ -843,26 +882,39 @@ function GoogleView(props: {
   selectedAlbumId: string;
   google: SessionState["google"];
   pickerSession: PickerSession | null;
+  pickerModalOpen: boolean;
   pickedItems: PickedMediaItem[];
   importableItems: PickedMediaItem[];
   importResult: ImportResult | null;
+  targetAlbumPhotos: AlbumPhoto[];
   onSelectAlbum: (albumId: string) => void;
   onConnect: () => void;
   onSaveGoogleClientId: (event: React.FormEvent<HTMLFormElement>) => void;
   onStartPicker: () => void;
+  onOpenPickerModal: () => void;
+  onClosePickerModal: () => void;
+  onOpenPickerWindow: () => void;
   onPollPicker: () => void;
   onImport: () => void;
 }) {
+  const targetAlbum = props.albums.find((album) => album.albumId === props.selectedAlbumId);
+
   return (
-    <section className="section-card">
-      <div className="section-header">
-        <div>
-          <h2>Google Photos</h2>
-          <p className="section-subtitle">Pick images and add them to an Inkjoy album.</p>
+    <>
+      <section className="section-card">
+        <div className="section-header">
+          <div>
+            <h2>Google Photos</h2>
+            <p className="section-subtitle">Pick images and add them to an Inkjoy album.</p>
+          </div>
         </div>
-      </div>
-      <GoogleImportBody {...props} />
-    </section>
+        <GoogleImportBody {...props} />
+      </section>
+
+      {targetAlbum ? (
+        <TargetAlbumPreview album={targetAlbum} photos={props.targetAlbumPhotos} />
+      ) : null}
+    </>
   );
 }
 
@@ -871,116 +923,256 @@ function GoogleImportBody(props: {
   selectedAlbumId: string;
   google: SessionState["google"];
   pickerSession: PickerSession | null;
+  pickerModalOpen: boolean;
   pickedItems: PickedMediaItem[];
   importableItems: PickedMediaItem[];
   importResult: ImportResult | null;
+  targetAlbumPhotos: AlbumPhoto[];
   onSelectAlbum: (albumId: string) => void;
   onConnect: () => void;
   onSaveGoogleClientId: (event: React.FormEvent<HTMLFormElement>) => void;
   onStartPicker: () => void;
+  onOpenPickerModal: () => void;
+  onClosePickerModal: () => void;
+  onOpenPickerWindow: () => void;
   onPollPicker: () => void;
   onImport: () => void;
 }) {
   const targetAlbum = props.albums.find((album) => album.albumId === props.selectedAlbumId);
+  const expired = Boolean(props.google.expired);
 
   return (
-    <div className="google-panel">
-      <div className="album-source-panel">
-        <div className="album-source-label">Target album</div>
-        <div className="inline-album-scroll">
-          {props.albums.map((album) => (
-            <button
-              type="button"
-              key={album.albumId}
-              className={`inline-album-card ${album.albumId === props.selectedAlbumId ? "selected" : ""}`}
-              onClick={() => props.onSelectAlbum(album.albumId)}
-            >
-              <div className="inline-album-thumb">
-                {album.coverImgThumbnail || album.coverImg ? (
-                  <img src={album.coverImgThumbnail || album.coverImg} alt="" />
-                ) : (
-                  <Image size={22} />
-                )}
+    <>
+      <div className="google-panel">
+        <div className="album-source-panel">
+          <div className="album-source-label">Target album</div>
+          <div className="inline-album-scroll">
+            {props.albums.map((album) => (
+              <button
+                type="button"
+                key={album.albumId}
+                className={`inline-album-card ${album.albumId === props.selectedAlbumId ? "selected" : ""}`}
+                onClick={() => props.onSelectAlbum(album.albumId)}
+              >
+                <div className="inline-album-thumb">
+                  {album.coverImgThumbnail || album.coverImg ? (
+                    <img src={album.coverImgThumbnail || album.coverImg} alt="" />
+                  ) : (
+                    <Image size={22} />
+                  )}
+                </div>
+                <span>{album.albumName || "Untitled"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="picker-workflow">
+          {!props.google.connected ? (
+            <>
+              {!props.google.configured ? (
+                <form className="google-client-form" onSubmit={props.onSaveGoogleClientId}>
+                  <label>
+                    Google OAuth Client ID
+                    <input name="googleClientId" placeholder="1234567890-abc.apps.googleusercontent.com" required />
+                  </label>
+                  <button type="submit" className="btn btn-secondary">
+                    Save Client ID
+                  </button>
+                </form>
+              ) : null}
+              {expired ? (
+                <div className="picker-status">
+                  <strong>Google Photos session expired.</strong>
+                  <span>Reconnect before picking or importing images.</span>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={props.onConnect}
+                disabled={!props.google.configured}
+              >
+                <Check size={16} />
+                {props.google.configured ? "Reconnect Google" : "Google Setup Needed"}
+              </button>
+              {!props.google.configured ? (
+                <p className="setup-hint">
+                  Use a Web application OAuth client with {window.location.origin} as an authorized JavaScript
+                  origin.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <div className="connected-row">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={props.pickerSession ? props.onOpenPickerModal : props.onStartPicker}
+                >
+                  <UploadCloud size={16} />
+                  {props.pickerSession ? "Continue Picking" : "Pick Images"}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={props.onConnect}>
+                  Reconnect
+                </button>
               </div>
-              <span>{album.albumName || "Untitled"}</span>
-            </button>
-          ))}
+              {props.pickerSession ? (
+                <div className="picker-status">
+                  <span>{props.pickerSession.mediaItemsSet ? "Ready to import" : "Waiting for Google Photos"}</span>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={props.onPollPicker}>
+                    <RefreshCcw size={14} />
+                    Check
+                  </button>
+                </div>
+              ) : null}
+              <div className="stat-row">
+                <div>
+                  <strong>{props.pickedItems.length}</strong>
+                  <span>Selected</span>
+                </div>
+                <div>
+                  <strong>{props.importableItems.length}</strong>
+                  <span>Images</span>
+                </div>
+                <div>
+                  <strong>{props.importResult?.imported || 0}</strong>
+                  <span>Imported</span>
+                </div>
+              </div>
+              <PickedImagePreview items={props.importableItems} />
+              <button
+                type="button"
+                className="btn btn-success btn-send-cta"
+                onClick={props.onImport}
+                disabled={!targetAlbum || !props.importableItems.length}
+              >
+                Add to {targetAlbum?.albumName || "Album"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="picker-workflow">
-        {!props.google.connected ? (
-          <>
-            {!props.google.configured ? (
-              <form className="google-client-form" onSubmit={props.onSaveGoogleClientId}>
-                <label>
-                  Google OAuth Client ID
-                  <input name="googleClientId" placeholder="1234567890-abc.apps.googleusercontent.com" required />
-                </label>
-                <button type="submit" className="btn btn-secondary">
-                  Save Client ID
-                </button>
-              </form>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={props.onConnect}
-              disabled={!props.google.configured}
-            >
-              <Check size={16} />
-              {props.google.configured ? "Connect Google" : "Google Setup Needed"}
-            </button>
-            {!props.google.configured ? (
-              <p className="setup-hint">
-                Use a Web application OAuth client with http://localhost:5173 as an authorized JavaScript origin.
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <button type="button" className="btn btn-primary" onClick={props.onStartPicker}>
-              <UploadCloud size={16} />
-              Pick Images
-            </button>
-            {props.pickerSession ? (
-              <div className="picker-status">
-                <a href={props.pickerSession.pickerUri} target="_blank" rel="noreferrer">
-                  Open Picker
-                </a>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={props.onPollPicker}>
-                  <RefreshCcw size={14} />
-                  Check
-                </button>
-                <span>{props.pickerSession.mediaItemsSet ? "Ready" : "Waiting"}</span>
-              </div>
-            ) : null}
-            <div className="stat-row">
-              <div>
-                <strong>{props.pickedItems.length}</strong>
-                <span>Selected</span>
-              </div>
-              <div>
-                <strong>{props.importableItems.length}</strong>
-                <span>Images</span>
-              </div>
-              <div>
-                <strong>{props.importResult?.imported || 0}</strong>
-                <span>Imported</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="btn btn-success btn-send-cta"
-              onClick={props.onImport}
-              disabled={!targetAlbum || !props.importableItems.length}
-            >
-              Add to {targetAlbum?.albumName || "Album"}
-            </button>
-          </>
-        )}
-      </div>
+      {props.pickerModalOpen && props.pickerSession ? (
+        <PickerSessionModal
+          session={props.pickerSession}
+          items={props.importableItems}
+          targetAlbumName={targetAlbum?.albumName}
+          onOpenPicker={props.onOpenPickerWindow}
+          onPoll={props.onPollPicker}
+          onImport={props.onImport}
+          onClose={props.onClosePickerModal}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function PickerSessionModal(props: {
+  session: PickerSession;
+  items: PickedMediaItem[];
+  targetAlbumName?: string;
+  onOpenPicker: () => void;
+  onPoll: () => void;
+  onImport: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-overlay" role="presentation" onMouseDown={props.onClose}>
+      <section
+        className="modal-box picker-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="picker-session-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="modal-header">
+          <div>
+            <h2 id="picker-session-title">Google Photos Picker</h2>
+            <p className="section-subtitle">
+              Google opens the picker in its own window; return here after tapping Done.
+            </p>
+          </div>
+          <button type="button" className="icon-btn" onClick={props.onClose} aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="picker-modal-actions">
+          <button type="button" className="btn btn-primary" onClick={props.onOpenPicker}>
+            <UploadCloud size={16} />
+            Open Google Photos
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={props.onPoll}>
+            <RefreshCcw size={15} />
+            Check Selection
+          </button>
+        </div>
+
+        <div className="picker-status">
+          <span>{props.session.mediaItemsSet ? "Selection received." : "Waiting for selection."}</span>
+          <span>{props.items.length} image{props.items.length === 1 ? "" : "s"} ready for import.</span>
+        </div>
+
+        <PickedImagePreview items={props.items} />
+
+        <div className="modal-actions">
+          <button type="button" className="btn btn-secondary" onClick={props.onClose}>
+            Close
+          </button>
+          <button type="button" className="btn btn-success" onClick={props.onImport} disabled={!props.items.length}>
+            Add to {props.targetAlbumName || "Album"}
+          </button>
+        </div>
+      </section>
     </div>
+  );
+}
+
+function PickedImagePreview({ items }: { items: PickedMediaItem[] }) {
+  if (!items.length) {
+    return <div className="empty-state compact">No images selected yet.</div>;
+  }
+
+  return (
+    <div className="picked-preview-grid">
+      {items.map((item) => (
+        <div className="picked-preview-card" key={item.id}>
+          {item.mediaFile?.baseUrl ? (
+            <img src={api.googleThumbnailUrl(item.mediaFile.baseUrl)} alt="" />
+          ) : (
+            <Image size={24} />
+          )}
+          <span>{item.mediaFile?.filename || "Google Photo"}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TargetAlbumPreview({ album, photos }: { album: Album; photos: AlbumPhoto[] }) {
+  return (
+    <section className="section-card target-album-preview">
+      <div className="section-header">
+        <div>
+          <h2>{album.albumName || "Target Album"}</h2>
+          <p className="section-subtitle">{photos.length} current photo(s)</p>
+        </div>
+      </div>
+      {photos.length ? (
+        <div className="photo-grid compact-photo-grid">
+          {photos.map((photo) => (
+            <div className="photo-card static" key={photo.imgId}>
+              {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="" /> : <Image size={24} />}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state">This target album is empty.</div>
+      )}
+    </section>
   );
 }
 

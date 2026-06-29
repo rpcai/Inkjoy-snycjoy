@@ -41,6 +41,10 @@ app.get("/api/health", (c) => c.json({ ok: true }));
 
 app.get("/api/session", async (c) => {
   const session = await readSession(c);
+  const googleConfigured = isGoogleConfigured();
+  const googleClientId = getGoogleClientId() || undefined;
+  const googleExpired = Boolean(session.google && session.google.expiresAt <= Date.now());
+
   return c.json({
     inkjoy: session.inkjoy
       ? {
@@ -52,15 +56,16 @@ app.get("/api/session", async (c) => {
       : { connected: false },
     google: session.google
       ? {
-          connected: true,
+          connected: !googleExpired,
           expiresAt: session.google.expiresAt,
-          configured: isGoogleConfigured(),
-          clientId: getGoogleClientId() || undefined,
+          configured: googleConfigured,
+          clientId: googleClientId,
+          expired: googleExpired,
         }
       : {
           connected: false,
-          configured: isGoogleConfigured(),
-          clientId: getGoogleClientId() || undefined,
+          configured: googleConfigured,
+          clientId: googleClientId,
         },
   });
 });
@@ -386,6 +391,29 @@ app.get("/api/google/picker/media-items", async (c) => {
 
   const result = await googlePickerRequest(session, `/mediaItems?${query.toString()}`);
   return c.json(result);
+});
+
+app.get("/api/google/media", async (c) => {
+  const session = await readSession(c);
+  const baseUrl = c.req.query("baseUrl");
+  const size = c.req.query("size") || "w256-h256-c";
+
+  if (!baseUrl) {
+    return c.json({ error: "baseUrl is required" }, 400);
+  }
+
+  const response = await fetchGoogleMedia(session, baseUrl, size);
+
+  if (!response.ok) {
+    return c.json({ error: `Google media fetch failed with ${response.status}` }, 502);
+  }
+
+  return new Response(response.body, {
+    headers: {
+      "Content-Type": response.headers.get("Content-Type") || "image/jpeg",
+      "Cache-Control": "private, max-age=300",
+    },
+  });
 });
 
 app.post("/api/import/google-to-inkjoy", async (c) => {

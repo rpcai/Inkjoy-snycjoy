@@ -93,6 +93,8 @@ export const api = {
     apiFetch<{ mediaItems?: PickedMediaItem[]; nextPageToken?: string }>(
       `/api/google/picker/media-items?sessionId=${sessionId}${pageToken ? `&pageToken=${pageToken}` : ""}`,
     ),
+  googleThumbnailUrl: (baseUrl: string) =>
+    `/api/google/media?baseUrl=${encodeURIComponent(baseUrl)}&size=w256-h256-c`,
   importGoogleToInkjoy: (albumId: string, items: PickedMediaItem[]) =>
     apiFetch<ImportResult>("/api/import/google-to-inkjoy", {
       method: "POST",

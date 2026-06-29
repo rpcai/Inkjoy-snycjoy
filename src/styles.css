@@ -831,6 +831,13 @@ a {
   justify-content: center;
 }
 
+.connected-row,
+.picker-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .google-client-form {
   display: grid;
   gap: 0.75rem;
@@ -889,6 +896,61 @@ a {
   border-radius: 0.85rem;
   font-size: 1rem;
   box-shadow: 0 4px 14px rgb(34 197 94 / 32%);
+}
+
+.picked-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 0.75rem;
+}
+
+.picked-preview-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: #fff;
+}
+
+.picked-preview-card img,
+.picked-preview-card svg {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: #f8fafc;
+  color: var(--text-muted);
+}
+
+.picked-preview-card span {
+  display: block;
+  overflow: hidden;
+  padding: 0.45rem 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.target-album-preview {
+  margin-top: -0.75rem;
+}
+
+.compact-photo-grid {
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+}
+
+.photo-card.static {
+  cursor: default;
+}
+
+.picker-modal {
+  width: min(100%, 820px);
+}
+
+.picker-modal-actions {
+  margin-bottom: 1rem;
 }
 
 .timeline-summary {
@@ -1064,6 +1126,10 @@ a {
   color: var(--text-muted);
   text-align: center;
   font-size: 0.9rem;
+}
+
+.empty-state.compact {
+  padding: 1rem;
 }
 
 .toast {

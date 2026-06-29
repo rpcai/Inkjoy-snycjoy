@@ -10,6 +10,7 @@ export type SessionState = {
     configured: boolean;
     clientId?: string;
     expiresAt?: number;
+    expired?: boolean;
   };
 };
 
