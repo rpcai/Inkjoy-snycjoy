@@ -1,8 +1,5 @@
-import { serve } from "@hono/node-server";
-import "dotenv/config";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { randomUUID } from "node:crypto";
 import {
   createGoogleSessionFromBrowserToken,
   createGoogleAuthUrl,
@@ -13,19 +10,14 @@ import {
   isGoogleConfigured,
 } from "./google";
 import { inkjoyRequest, requireInkjoy } from "./inkjoy";
-import { readSession, writeSession, type InkjoyRegion } from "./session";
+import { readSession, writeSession, type Env, type InkjoyRegion } from "./session";
 
-const app = new Hono();
-const corsOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  process.env.PUBLIC_APP_URL,
-].filter(Boolean) as string[];
+const app = new Hono<{ Bindings: Env }>();
 
 app.use(
   "/api/*",
   cors({
-    origin: corsOrigins,
+    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
     allowHeaders: ["Content-Type"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
@@ -37,12 +29,19 @@ app.onError((error, c) => {
   return c.json({ error: error.message || "Unexpected server error" }, 500);
 });
 
+app.notFound((c) => {
+  if (c.req.path.startsWith("/api/")) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  return c.env.ASSETS.fetch(c.req.raw);
+});
+
 app.get("/api/health", (c) => c.json({ ok: true }));
 
 app.get("/api/session", async (c) => {
   const session = await readSession(c);
-  const googleConfigured = isGoogleConfigured();
-  const googleClientId = getGoogleClientId() || undefined;
+  const googleConfigured = isGoogleConfigured(c.env);
+  const googleClientId = getGoogleClientId(c.env) || undefined;
   const googleExpired = Boolean(session.google && session.google.expiresAt <= Date.now());
 
   return c.json({
@@ -106,7 +105,7 @@ app.post("/api/inkjoy/login", async (c) => {
     uid: result.data.uid,
     expireAt: result.data.expireAt,
   };
-  writeSession(c, session);
+  await writeSession(c, session);
 
   return c.json({
     connected: true,
@@ -119,7 +118,7 @@ app.post("/api/inkjoy/login", async (c) => {
 app.post("/api/inkjoy/logout", async (c) => {
   const session = await readSession(c);
   delete session.inkjoy;
-  writeSession(c, session);
+  await writeSession(c, session);
   return c.json({ ok: true });
 });
 
@@ -176,6 +175,28 @@ app.get("/api/inkjoy/albums/:albumId/photos", async (c) => {
     body: { albumId: c.req.param("albumId") },
   });
   return c.json(result.data ?? []);
+});
+
+app.post("/api/inkjoy/albums/:albumId/photos", async (c) => {
+  const session = await readSession(c);
+  requireInkjoy(session);
+  const formData = await c.req.formData();
+  const file = formData.get("file");
+
+  if (!(file instanceof File)) {
+    return c.json({ error: "file is required" }, 400);
+  }
+
+  const outbound = new FormData();
+  outbound.set("albumId", c.req.param("albumId"));
+  outbound.set("file", file, file.name || "photo.jpg");
+
+  await inkjoyRequest("/api/v1/album/img", session, {
+    method: "POST",
+    body: outbound,
+  });
+
+  return c.json({ ok: true });
 });
 
 app.post("/api/inkjoy/albums/:albumId/photos/delete", async (c) => {
@@ -313,10 +334,10 @@ app.post("/api/inkjoy/carousels/activate-album", async (c) => {
 
 app.get("/api/google/oauth/start", async (c) => {
   const session = await readSession(c);
-  const state = randomUUID();
+  const state = crypto.randomUUID();
   session.googleOauthState = state;
-  writeSession(c, session);
-  return c.redirect(createGoogleAuthUrl(state));
+  await writeSession(c, session);
+  return c.redirect(createGoogleAuthUrl(state, c.env));
 });
 
 app.get("/api/google/oauth/callback", async (c) => {
@@ -328,9 +349,9 @@ app.get("/api/google/oauth/callback", async (c) => {
     return c.redirect("/?google=error");
   }
 
-  session.google = await exchangeGoogleCode(code);
+  session.google = await exchangeGoogleCode(code, c.env);
   delete session.googleOauthState;
-  writeSession(c, session);
+  await writeSession(c, session);
   return c.redirect("/?google=connected");
 });
 
@@ -343,19 +364,19 @@ app.post("/api/google/token", async (c) => {
   };
   const session = await readSession(c);
   session.google = createGoogleSessionFromBrowserToken(body);
-  writeSession(c, session);
+  await writeSession(c, session);
   return c.json({
     connected: true,
     expiresAt: session.google.expiresAt,
-    configured: isGoogleConfigured(),
-    clientId: getGoogleClientId() || undefined,
+    configured: isGoogleConfigured(c.env),
+    clientId: getGoogleClientId(c.env) || undefined,
   });
 });
 
 app.post("/api/google/logout", async (c) => {
   const session = await readSession(c);
   delete session.google;
-  writeSession(c, session);
+  await writeSession(c, session);
   return c.json({ ok: true });
 });
 
@@ -474,8 +495,4 @@ app.post("/api/import/google-to-inkjoy", async (c) => {
   });
 });
 
-const port = Number(process.env.PORT || 8787);
-
-serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`Syncjoy API listening on http://127.0.0.1:${info.port}`);
-});
+export default app;

@@ -1,6 +1,5 @@
 import type { Context } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
 const COOKIE_NAME = "syncjoy_session";
 const DEV_SECRET = "local-dev-only-change-me";
@@ -27,21 +26,32 @@ export type AppSession = {
   googleOauthState?: string;
 };
 
+export type Env = {
+  SESSION_SECRET?: string;
+  PUBLIC_APP_URL?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  GOOGLE_REDIRECT_URI?: string;
+  ASSETS: Fetcher;
+};
+
+type AppContext = Context<{ Bindings: Env }>;
+
 export function getInkjoyBaseUrl(region: InkjoyRegion) {
   return region === "mainland"
     ? "https://openapi.advisor.epaperframe.com"
     : "https://openapi.inkjoyframe.com";
 }
 
-export function getSessionSecret() {
-  return process.env.SESSION_SECRET || DEV_SECRET;
+export function getSessionSecret(c: AppContext) {
+  return c.env.SESSION_SECRET || DEV_SECRET;
 }
 
-export function isSecureCookie() {
-  return (process.env.PUBLIC_APP_URL || "").startsWith("https://");
+export function isSecureCookie(c: AppContext) {
+  return (c.env.PUBLIC_APP_URL || "").startsWith("https://");
 }
 
-export async function readSession(c: Context): Promise<AppSession> {
+export async function readSession(c: AppContext): Promise<AppSession> {
   const encrypted = getCookie(c, COOKIE_NAME);
 
   if (!encrypted) {
@@ -49,65 +59,79 @@ export async function readSession(c: Context): Promise<AppSession> {
   }
 
   try {
-    return JSON.parse(decrypt(encrypted, getSessionSecret())) as AppSession;
+    return JSON.parse(await decrypt(encrypted, getSessionSecret(c))) as AppSession;
   } catch {
     return {};
   }
 }
 
-export function writeSession(c: Context, session: AppSession) {
-  setCookie(c, COOKIE_NAME, encrypt(JSON.stringify(session), getSessionSecret()), {
+export async function writeSession(c: AppContext, session: AppSession) {
+  setCookie(c, COOKIE_NAME, await encrypt(JSON.stringify(session), getSessionSecret(c)), {
     httpOnly: true,
     maxAge: 60 * 60 * 24 * 14,
     path: "/",
     sameSite: "Lax",
-    secure: isSecureCookie(),
+    secure: isSecureCookie(c),
   });
 }
 
-export function clearSession(c: Context) {
+export function clearSession(c: AppContext) {
   setCookie(c, COOKIE_NAME, "", {
     httpOnly: true,
     maxAge: 0,
     path: "/",
     sameSite: "Lax",
-    secure: isSecureCookie(),
+    secure: isSecureCookie(c),
   });
 }
 
-function encrypt(value: string, secret: string) {
-  const key = deriveKey(secret);
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${base64url(iv)}.${base64url(tag)}.${base64url(ciphertext)}`;
+async function importKey(secret: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
+  return crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-function decrypt(value: string, secret: string) {
-  const [ivRaw, tagRaw, ciphertextRaw] = value.split(".");
+async function encrypt(value: string, secret: string) {
+  const key = await importKey(secret);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(value),
+  );
+  return `${base64url(iv)}.${base64url(new Uint8Array(ciphertext))}`;
+}
 
-  if (!ivRaw || !tagRaw || !ciphertextRaw) {
+async function decrypt(value: string, secret: string) {
+  const [ivRaw, ciphertextRaw] = value.split(".");
+
+  if (!ivRaw || !ciphertextRaw) {
     throw new Error("Invalid encrypted session format");
   }
 
-  const key = deriveKey(secret);
-  const decipher = createDecipheriv("aes-256-gcm", key, fromBase64url(ivRaw));
-  decipher.setAuthTag(fromBase64url(tagRaw));
-  return Buffer.concat([
-    decipher.update(fromBase64url(ciphertextRaw)),
-    decipher.final(),
-  ]).toString("utf8");
+  const key = await importKey(secret);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: fromBase64url(ivRaw) },
+    key,
+    fromBase64url(ciphertextRaw),
+  );
+  return new TextDecoder().decode(plaintext);
 }
 
-function deriveKey(secret: string) {
-  return createHash("sha256").update(secret).digest();
-}
-
-function base64url(value: Buffer) {
-  return value.toString("base64url");
+function base64url(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 function fromBase64url(value: string) {
-  return Buffer.from(value, "base64url");
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }

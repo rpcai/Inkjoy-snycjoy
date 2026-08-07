@@ -24,9 +24,10 @@ Confirmed v1 product constraints:
 Recommended default architecture:
 
 - Vite + React + TypeScript frontend.
-- Local-first development runtime for easier debugging.
-- Local thin backend first, shaped to map cleanly to Cloudflare Pages Functions later.
-- Cloudflare Pages deployment target.
+- A single Hono backend (`server/index.ts`) that runs as a Cloudflare Worker in both local dev
+  (via `@cloudflare/vite-plugin`, the real Workers runtime) and production.
+- Cloudflare Worker deployment target, with the built frontend served from the Worker's static-assets
+  binding — no separate Pages project.
 - Backend boundary for auth/session, Inkjoy API proxying, and media transfer.
 - No database for v1.
 - Server-set, secure, httpOnly, encrypted cookies for Inkjoy and Google tokens.
@@ -37,9 +38,10 @@ Why this direction:
 - Google Picker sessions are short-lived and user initiated.
 - Google media `baseUrl` requests require OAuth authorization.
 - Inkjoy album upload requires multipart file upload.
-- Cloudflare Functions can stream bytes through without retaining photos.
+- The Worker can stream bytes through without retaining photos.
 - httpOnly cookies minimize repeated logins without exposing bearer tokens to browser JavaScript.
-- Local-first development makes API and OAuth debugging easier before pivoting to Cloudflare Pages.
+- Running the real Workers runtime in local dev (rather than an approximated Node server) means
+  API/OAuth behavior verified locally matches production exactly.
 
 See [auth-architecture.md](auth-architecture.md) for the browser token discussion.
 
@@ -52,7 +54,6 @@ See [auth-architecture.md](auth-architecture.md) for the browser token discussio
 - Confirm whether Inkjoy login tokens can be refreshed or only reissued via email/password login.
 - Confirm whether Inkjoy upload accepts only jpg/png. Treat other image formats as unsupported until proven otherwise.
 - Test Google OAuth flow in the local app.
-- Keep request/response patterns compatible with a later Cloudflare Pages Functions port.
 
 Exit criteria:
 
@@ -120,8 +121,8 @@ Exit criteria:
 
 ### 5. Deployment and Hardening
 
-- Add/validate Cloudflare Pages configuration after the local implementation is working.
-- Port the local backend routes to Pages Functions or a compatible adapter.
+- Add/validate Cloudflare Worker configuration (`wrangler.toml`, static-assets binding) after the
+  local implementation is working. Done — see `wrangler.toml` and `server/index.ts`.
 - Add environment variable documentation.
 - Add error states for expired Google base URLs and expired Inkjoy JWTs.
 - Add import cancellation.
@@ -145,8 +146,9 @@ Default v1 policy:
 ## Known Risks
 
 - Google Photos Picker is intentionally interactive; v1 is on-demand import only.
-- Browser-only token storage would expose tokens to JavaScript, so the recommended implementation uses Pages Functions and httpOnly cookies.
-- Cloudflare request/body limits may require upload chunking or direct browser upload if users pick very large images.
-- Local backend behavior must be kept close to Cloudflare Pages Functions constraints to avoid a difficult deployment pivot.
+- Browser-only token storage would expose tokens to JavaScript, so the implementation uses the
+  Worker and httpOnly cookies.
+- Cloudflare request/body limits (100MB on Free/Pro) may require upload chunking or direct browser
+  upload if users pick very large images; not a concern for the composited JPEGs produced today.
 - Inkjoy carousel activation semantics still need validation, but product behavior should enforce one active album carousel per frame.
 - HEIC support is unclear against Inkjoy album upload docs; jpg/png should be the first supported import path.

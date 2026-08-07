@@ -1,4 +1,11 @@
 name = "inkjoy-syncjoy"
 compatibility_date = "2026-06-26"
-pages_build_output_dir = "dist"
+main = "server/index.ts"
 
+[vars]
+PUBLIC_APP_URL = "https://inkjoy-syncjoy.ruben-j-peters.workers.dev"
+
+[assets]
+directory = "dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"

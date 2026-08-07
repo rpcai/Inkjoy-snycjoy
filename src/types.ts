@@ -1,3 +1,29 @@
+export type View = "home" | "albums" | "album" | "frame" | "review" | "crop" | "importing" | "done";
+
+export type PickOrigin = "home" | "album";
+
+export type LocalPickedPhoto = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  width: number;
+  height: number;
+};
+
+export type CropMode = "fill" | "fit";
+
+export type Matte = "blur" | "#FFFFFF" | "#000000" | "#A02020" | "#F0E050" | "#608050" | "#5080B8";
+
+export type CropAdjustment = {
+  zoom: number;
+  x: number;
+  y: number;
+  rot: 0 | 90 | 180 | 270;
+  mode: CropMode;
+  matte: Matte;
+  done: boolean;
+};
+
 export type SessionState = {
   inkjoy: {
     connected: boolean;

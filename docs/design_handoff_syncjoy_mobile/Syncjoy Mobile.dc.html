@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#e9e7e2;font-family:Manrope,system-ui,sans-serif}
+[data-om-starter="android-frame"] *{scrollbar-width:none}
+[data-om-starter="android-frame"] *::-webkit-scrollbar{display:none}
+a{color:#2d5a4a}a:hover{color:#1e4538}
+button{font:inherit;cursor:pointer}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:18px;padding:36px 24px 60px">
+<div style="display:flex;align-items:baseline;gap:12px;font-size:12px;color:#64748b;font-weight:600">
+<span style="font-family:Georgia,serif;font-size:18px;font-weight:800;color:#2d5a4a">InkJoy Syncjoy</span>
+<span>Android PWA · interactive prototype</span>
+</div>
+<x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="412px,892px">
+<div style="position:relative;height:100%;display:flex;flex-direction:column;overflow:hidden;background:#f7f5f2;color:#1e293b;font-family:Manrope,system-ui,sans-serif">
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;background:#2d5a4a;color:#fff">
+<div style="display:flex;align-items:center;gap:9px">
+<span style="position:relative;width:30px;height:30px;flex:0 0 auto">
+<span style="position:absolute;inset:5px 6px;display:grid;align-content:center;gap:3px;padding:4px;border:1.5px solid #754c24;border-radius:4px;background:#f8fafc;box-shadow:inset 0 0 0 1px #f2ead2">
+<span style="display:block;height:2px;border-radius:999px;background:#2d5a4a"></span>
+<span style="display:block;height:2px;width:60%;border-radius:999px;background:#2d5a4a"></span>
+</span>
+<span style="position:absolute;top:0;left:10px;width:10px;height:10px;border-radius:3px 7px 3px 7px;background:#4285f4"></span>
+<span style="position:absolute;top:10px;right:0;width:10px;height:10px;border-radius:3px 7px 3px 7px;background:#ea4335"></span>
+<span style="position:absolute;bottom:0;left:10px;width:10px;height:10px;border-radius:3px 7px 3px 7px;background:#fbbc04"></span>
+<span style="position:absolute;top:10px;left:0;width:10px;height:10px;border-radius:3px 7px 3px 7px;background:#34a853"></span>
+</span>
+<span style="display:grid;line-height:1.05">
+<span style="font-family:Georgia,serif;font-size:15px;font-weight:800">InkJoy</span>
+<span style="font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.66)">Syncjoy</span>
+</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px">
+<span style="padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);font-size:11px;font-weight:600;color:rgba(255,255,255,.9)">Global</span>
+<button onClick="{{ refresh }}" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid rgba(255,255,255,.22);border-radius:10px;background:rgba(255,255,255,.1);color:#fff" aria-label="Refresh">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><path d="M21 3v6h-6"></path></svg>
+</button>
+</div>
+</div>
+
+<div style="flex:1;overflow:auto;padding:18px 18px 108px">
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+<div style="margin-bottom:14px;padding:12px 14px;border-radius:14px;background:#f0fdf4;border:1px solid #86efac;color:#166534;font-size:13px;font-weight:700">{{ toast }}</div>
+</sc-if>
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+<h2 style="margin:0;font-size:19px;font-weight:800;letter-spacing:-.01em">My frames</h2>
+<span style="font-size:12px;font-weight:700;color:#64748b">{{ frameCountLabel }}</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{ frames }}" as="f" hint-placeholder-count="2">
+<button onClick="{{ f.open }}" style="display:flex;gap:14px;width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:18px;background:#fff;text-align:left;color:#1e293b;box-shadow:0 1px 3px rgba(15,23,42,.05)">
+<span style="flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:{{ f.boxW }};height:76px;border:2px solid #8a5a2b;border-radius:3px;background:{{ f.tint }};box-shadow:inset 0 0 0 2px #f5f1dc;overflow:hidden">
+<span style="display:block;width:100%;height:100%;background-image:url({{ f.url }});background-size:cover;background-position:center"></span>
+</span>
+<span style="display:grid;gap:5px;min-width:0;flex:1">
+<span style="display:flex;align-items:center;gap:7px">
+<strong style="font-size:15px;font-weight:800">{{ f.name }}</strong>
+<span style="width:7px;height:7px;border-radius:50%;background:{{ f.dot }}"></span>
+<span style="font-size:11px;font-weight:700;color:#64748b">{{ f.status }}</span>
+</span>
+<span style="font-size:12px;color:#64748b;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.nowPlaying }}</span>
+<span style="font-size:11px;color:#94a3b8;font-weight:600">{{ f.schedule }}</span>
+</span>
+<span style="align-self:center;color:#cbd5e1">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg>
+</span>
+</button>
+</sc-for>
+</div>
+
+<h2 style="margin:26px 0 4px;font-size:19px;font-weight:800;letter-spacing:-.01em">Recent albums</h2>
+<p style="margin:0 0 12px;font-size:12.5px;color:#64748b;font-weight:600">Tap an album to add photos from your phone.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<sc-for list="{{ recentAlbums }}" as="a" hint-placeholder-count="2">
+<button onClick="{{ a.open }}" style="display:grid;gap:0;padding:0;overflow:hidden;border:1.5px solid #e2e8f0;border-radius:16px;background:#fff;text-align:left;color:#1e293b">
+<span style="display:block;aspect-ratio:1.35;background:{{ a.tint }};overflow:hidden">
+<span style="display:block;width:100%;height:100%;background-image:url({{ a.url }});background-size:cover;background-position:center"></span>
+</span>
+<span style="display:grid;gap:2px;padding:9px 11px 11px">
+<strong style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</strong>
+<span style="font-size:11px;font-weight:700;color:#64748b">{{ a.count }} photos</span>
+</span>
+</button>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isAlbums }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;background:#fff;border-bottom:1px solid #e2e8f0">
+<h2 style="margin:0;font-size:20px;font-weight:800;letter-spacing:-.01em">Albums</h2>
+<button onClick="{{ newAlbum }}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border:none;border-radius:11px;background:#2d5a4a;color:#fff;font-size:12.5px;font-weight:700">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+New
+</button>
+</div>
+<div style="flex:1;overflow:auto;padding:16px 18px 108px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+<sc-for list="{{ albums }}" as="a" hint-placeholder-count="4">
+<button onClick="{{ a.open }}" style="display:grid;gap:0;padding:0;overflow:hidden;border:1.5px solid #e2e8f0;border-radius:16px;background:#fff;text-align:left;color:#1e293b">
+<span style="display:block;aspect-ratio:1;background:{{ a.tint }};overflow:hidden">
+<span style="display:block;width:100%;height:100%;background-image:url({{ a.url }});background-size:cover;background-position:center"></span>
+</span>
+<span style="display:grid;gap:2px;padding:10px 11px 12px">
+<strong style="font-size:13.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</strong>
+<span style="font-size:11px;font-weight:700;color:#64748b">{{ a.count }} photos</span>
+</span>
+</button>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isAlbum }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 12px 12px 8px;background:#fff;border-bottom:1px solid #e2e8f0">
+<button onClick="{{ back }}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:none;border-radius:999px;background:transparent;color:#1e293b" aria-label="Back">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
+</button>
+<span style="display:grid;gap:1px;flex:1;min-width:0">
+<strong style="font-size:16px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ albumName }}</strong>
+<span style="font-size:11.5px;font-weight:600;color:#64748b">{{ albumSubtitle }}</span>
+</span>
+<button onClick="{{ addToThisAlbum }}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border:none;border-radius:11px;background:#2d5a4a;color:#fff;font-size:12.5px;font-weight:700">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+Add
+</button>
+</div>
+<div style="flex:1;overflow:auto;padding:14px 14px 108px">
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+<sc-for list="{{ albumPhotos }}" as="p" hint-placeholder-count="12">
+<button onClick="{{ p.toggle }}" style="position:relative;aspect-ratio:1;padding:0;border:none;border-radius:10px;overflow:hidden;background:{{ p.tint }};box-shadow:{{ p.ring }}">
+<span style="display:block;width:100%;height:100%;background-image:url({{ p.url }});background-size:cover;background-position:center"></span>
+<sc-if value="{{ p.checked }}" hint-placeholder-val="{{ false }}">
+<span style="position:absolute;top:6px;right:6px;display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#2d5a4a;color:#fff">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 13l4 4L19 7"></path></svg>
+</span>
+</sc-if>
+</button>
+</sc-for>
+</div>
+</div>
+<sc-if value="{{ hasAlbumSelection }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:10px;padding:14px 16px 18px;background:#fff;border-top:1px solid #e2e8f0;box-shadow:0 -6px 20px rgba(15,23,42,.07)">
+<span style="flex:1;font-size:13px;font-weight:700">{{ albumSelectionLabel }}</span>
+<button onClick="{{ clearAlbumSelection }}" style="padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:13px;font-weight:700;color:#1e293b">Cancel</button>
+<button onClick="{{ deletePhotos }}" style="padding:10px 16px;border:1.5px solid #fecaca;border-radius:12px;background:#fef2f2;color:#991b1b;font-size:13px;font-weight:800">Delete</button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isFrame }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+<div style="display:flex;align-items:center;gap:8px;padding:12px 12px 12px 8px;background:#2d5a4a;color:#fff">
+<button onClick="{{ back }}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:none;border-radius:999px;background:transparent;color:#fff" aria-label="Back">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
+</button>
+<strong style="flex:1;font-size:16px;font-weight:800">{{ frameName }}</strong>
+<span style="padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.16);font-size:11px;font-weight:700">{{ frameStatus }}</span>
+</div>
+<div style="flex:1;overflow:auto;padding:18px 18px 108px">
+<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px;border-radius:20px;background:#fff;border:1.5px solid #e2e8f0">
+<div style="width:{{ frameBigW }};height:186px;padding:5px;border:3px solid #8a5a2b;border-radius:4px;background:#f5f1dc">
+<span style="display:block;width:100%;height:100%;background-image:url({{ frameUrl }});background-size:cover;background-position:center"></span></div>
+<span style="font-size:12px;font-weight:700;color:#64748b">{{ frameSpec }}</span>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px">
+<h2 style="margin:0;font-size:17px;font-weight:800">Slideshow</h2>
+<button onClick="{{ openSlideshow }}" style="padding:8px 14px;border:none;border-radius:11px;background:#2d5a4a;color:#fff;font-size:12.5px;font-weight:700">Edit</button>
+</div>
+<div style="display:grid;gap:10px;padding:16px;border-radius:18px;background:#eef2ef">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+<strong style="font-size:14px;font-weight:800;color:#1e4538">{{ scheduleAlbum }}</strong>
+<span style="padding:3px 10px;border-radius:999px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:800">Active</span>
+</div>
+<div style="position:relative;height:1px;margin:10px 4px 0;background:#cbd5e1">
+<sc-for list="{{ scheduleTicks }}" as="t" hint-placeholder-count="5">
+<i style="position:absolute;top:-9px;left:{{ t.left }};display:block;width:3px;height:18px;border-radius:2px;background:#2d5a4a"></i>
+</sc-for>
+</div>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);margin-top:8px;font-size:10px;font-weight:700;color:#94a3b8">
+<span>0</span><span>6</span><span>12</span><span>18</span><span style="text-align:right">24</span>
+</div>
+<span style="font-size:12px;font-weight:700;color:#1e4538">{{ scheduleSummary }}</span>
+</div>
+
+<div style="display:grid;gap:8px;margin-top:16px">
+<sc-for list="{{ scheduleRows }}" as="r" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border:1px solid #e2e8f0;border-radius:14px;background:#fff">
+<span style="font-size:12.5px;font-weight:700;color:#64748b">{{ r.label }}</span>
+<strong style="font-size:13px;font-weight:800">{{ r.value }}</strong>
+</div>
+</sc-for>
+</div>
+
+<button onClick="{{ playNow }}" style="width:100%;margin-top:16px;padding:14px;border:1.5px solid #e2e8f0;border-radius:14px;background:#fff;font-size:14px;font-weight:800;color:#1e293b">Play now</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPick }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#fff">
+<div style="display:flex;align-items:center;gap:8px;padding:12px 12px 10px 8px;border-bottom:1px solid #e2e8f0">
+<button onClick="{{ back }}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:none;border-radius:999px;background:transparent;color:#1e293b" aria-label="Close">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+</button>
+<span style="display:grid;gap:1px;flex:1">
+<strong style="font-size:16px;font-weight:800">Collections</strong>
+<span style="font-size:11.5px;font-weight:600;color:#64748b">On this phone · Google Photos</span>
+</span>
+</div>
+<div style="display:flex;gap:7px;padding:11px 14px;overflow-x:auto;border-bottom:1px solid #f1f5f9">
+<sc-for list="{{ buckets }}" as="b" hint-placeholder-count="4">
+<button onClick="{{ b.select }}" style="flex:0 0 auto;padding:7px 13px;border:1.5px solid {{ b.border }};border-radius:999px;background:{{ b.bg }};color:{{ b.color }};font-size:12px;font-weight:700">{{ b.label }}</button>
+</sc-for>
+</div>
+<div style="flex:1;overflow:auto;padding:8px 8px 120px">
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+<sc-for list="{{ rollPhotos }}" as="p" hint-placeholder-count="15">
+<button onClick="{{ p.toggle }}" style="position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:1;padding:0;border:none;border-radius:4px;overflow:hidden;background:#eceef0">
+<span style="position:relative;display:flex;align-items:flex-end;width:{{ p.innerW }};height:{{ p.innerH }};background:{{ p.tint }};overflow:hidden">
+<span style="position:absolute;inset:0;background-image:url({{ p.url }});background-size:cover;background-position:center"></span>
+<span style="position:relative;padding:0 0 3px 4px;font:700 8px ui-monospace,Menlo,monospace;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)">{{ p.ratio }}</span>
+</span>
+<span style="position:absolute;top:5px;right:5px;display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid {{ p.ringColor }};background:{{ p.fill }};color:#fff">
+<sc-if value="{{ p.checked }}" hint-placeholder-val="{{ false }}">
+<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M5 13l4 4L19 7"></path></svg>
+</sc-if>
+</span>
+<sc-if value="{{ p.checked }}" hint-placeholder-val="{{ false }}">
+<span style="position:absolute;inset:0;border:3px solid #2d5a4a;border-radius:4px"></span>
+</sc-if>
+</button>
+</sc-for>
+</div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:12px;padding:14px 16px 18px;background:#fff;border-top:1px solid #e2e8f0;box-shadow:0 -6px 20px rgba(15,23,42,.07)">
+<span style="flex:1;font-size:13px;font-weight:700;color:#64748b">{{ pickCountLabel }}</span>
+<button onClick="{{ toReview }}" style="padding:13px 22px;border:none;border-radius:14px;background:{{ nextBg }};color:#fff;font-size:14px;font-weight:800">Next</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+<div style="display:flex;align-items:center;gap:8px;padding:12px 12px 12px 8px;background:#fff;border-bottom:1px solid #e2e8f0">
+<button onClick="{{ back }}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:none;border-radius:999px;background:transparent;color:#1e293b" aria-label="Back">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
+</button>
+<strong style="flex:1;font-size:16px;font-weight:800">Add to album</strong>
+</div>
+<div style="flex:1;overflow:auto;padding:16px 18px 120px">
+<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">
+<sc-for list="{{ pickedPreview }}" as="p" hint-placeholder-count="6">
+<span style="flex:0 0 auto;position:relative;width:74px;height:74px;border-radius:10px;background:{{ p.tint }};overflow:hidden">
+<span style="display:block;width:100%;height:100%;background-image:url({{ p.url }});background-size:cover;background-position:center"></span>
+</span>
+</sc-for>
+</div>
+
+<button onClick="{{ openCrop }}" style="display:flex;align-items:center;gap:10px;width:100%;margin-top:14px;padding:12px 14px;border-radius:14px;background:#fff;border:1.5px solid {{ cropBorder }};text-align:left;color:#1e293b">
+<span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;background:{{ cropIconBg }};color:{{ cropIconColor }}">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>
+</span>
+<span style="flex:1;display:grid;gap:1px">
+<strong style="font-size:13px;font-weight:800">{{ cropLabel }}</strong>
+<span style="font-size:11.5px;font-weight:600;color:#64748b">{{ cropSubLabel }}</span>
+</span>
+<span style="padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:12px;font-weight:700;color:#1e293b">Frame them</span>
+</button>
+
+<p style="margin:20px 0 9px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b">Target album</p>
+<div style="display:grid;gap:8px">
+<sc-for list="{{ targetOptions }}" as="a" hint-placeholder-count="4">
+<button onClick="{{ a.select }}" style="display:flex;align-items:center;gap:12px;padding:11px 13px;border:1.5px solid {{ a.border }};border-radius:14px;background:#fff;text-align:left;color:#1e293b">
+<span style="width:44px;height:44px;border-radius:10px;background:{{ a.tint }};overflow:hidden"><span style="display:block;width:100%;height:100%;background-image:url({{ a.url }});background-size:cover;background-position:center"></span></span>
+<span style="flex:1;display:grid;gap:2px;min-width:0">
+<strong style="font-size:13.5px;font-weight:800">{{ a.name }}</strong>
+<span style="font-size:11.5px;font-weight:700;color:#64748b">{{ a.count }} photos</span>
+</span>
+<span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;border:2px solid {{ a.ring }};background:{{ a.fill }};color:#fff">
+<sc-if value="{{ a.checked }}" hint-placeholder-val="{{ false }}">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 13l4 4L19 7"></path></svg>
+</sc-if>
+</span>
+</button>
+</sc-for>
+</div>
+
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 16px 18px;background:#fff;border-top:1px solid #e2e8f0">
+<button onClick="{{ startImport }}" style="width:100%;padding:15px;border:none;border-radius:15px;background:#22c55e;color:#fff;font-size:15px;font-weight:800;box-shadow:0 4px 14px rgba(34,197,94,.32)">{{ importCta }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isCrop }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#14181c;color:#fff">
+<div style="display:flex;align-items:center;gap:8px;padding:10px 12px 10px 8px">
+<button onClick="{{ closeCrop }}" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:none;border-radius:999px;background:transparent;color:#fff" aria-label="Back">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
+</button>
+<span style="display:grid;gap:1px;flex:1;min-width:0">
+<strong style="font-size:15px;font-weight:800">Frame for {{ frameName }}</strong>
+<span style="font-size:11px;font-weight:600;color:rgba(255,255,255,.55)">{{ cropProgressLabel }}</span>
+</span>
+<button onClick="{{ resetCrop }}" style="padding:7px 12px;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:transparent;color:rgba(255,255,255,.8);font-size:12px;font-weight:700">Reset</button>
+</div>
+
+<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:6px 16px;min-height:0">
+<div onPointerDown="{{ dragStart }}" onPointerMove="{{ dragMove }}" onPointerUp="{{ dragEnd }}" onPointerCancel="{{ dragEnd }}" style="position:relative;width:{{ stageW }};height:{{ stageH }};overflow:hidden;border-radius:2px;background:{{ matteColor }};box-shadow:0 0 0 3px #f5f1dc,0 0 0 6px #8a5a2b,0 20px 40px rgba(0,0,0,.45);touch-action:none;cursor:grab">
+<sc-if value="{{ showBlurBack }}" hint-placeholder-val="{{ false }}">
+<span style="position:absolute;inset:-18%;background-image:url({{ cropUrl }});background-size:cover;background-position:center;filter:blur(22px) saturate(.75) brightness(.82)"></span>
+</sc-if>
+<div style="position:absolute;left:50%;top:50%;width:{{ imgW }};height:{{ imgH }};margin-left:{{ imgOffX }};margin-top:{{ imgOffY }};background:{{ cropTint }};box-shadow:{{ photoEdge }};overflow:hidden">
+<span style="display:block;width:100%;height:100%;background-image:url({{ cropUrl }});background-size:cover;background-position:center;transform:{{ rotTransform }};transition:transform .2s"></span>
+</div>
+<sc-if value="{{ rotBadge }}" hint-placeholder-val="{{ false }}">
+<span style="position:absolute;left:8px;top:8px;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font:700 10px ui-monospace,Menlo,monospace">{{ rotBadge }}</span>
+</sc-if>
+<div style="position:absolute;inset:0;pointer-events:none;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;opacity:{{ gridOpacity }}">
+<span style="border-right:1px solid rgba(255,255,255,.55);border-bottom:1px solid rgba(255,255,255,.55)"></span>
+<span style="border-right:1px solid rgba(255,255,255,.55);border-bottom:1px solid rgba(255,255,255,.55)"></span>
+<span style="border-bottom:1px solid rgba(255,255,255,.55)"></span>
+<span style="border-right:1px solid rgba(255,255,255,.55);border-bottom:1px solid rgba(255,255,255,.55)"></span>
+<span style="border-right:1px solid rgba(255,255,255,.55);border-bottom:1px solid rgba(255,255,255,.55)"></span>
+<span style="border-bottom:1px solid rgba(255,255,255,.55)"></span>
+<span style="border-right:1px solid rgba(255,255,255,.55)"></span>
+<span style="border-right:1px solid rgba(255,255,255,.55)"></span>
+<span></span>
+</div>
+</div>
+</div>
+
+<div style="padding:4px 16px 0;text-align:center;font-size:11px;font-weight:600;color:rgba(255,255,255,.5)">{{ cropHint }}</div>
+
+<div style="display:grid;gap:12px;padding:12px 16px 10px">
+<div style="display:flex;gap:8px">
+<button onClick="{{ setFill }}" style="flex:1;padding:10px;border:1.5px solid {{ fillBorder }};border-radius:12px;background:{{ fillBg }};color:{{ fillColor }};font-size:12.5px;font-weight:800">Fill frame</button>
+<button onClick="{{ setFitMode }}" style="flex:1;padding:10px;border:1.5px solid {{ fitBorder }};border-radius:12px;background:{{ fitBg }};color:{{ fitColor }};font-size:12.5px;font-weight:800">Fit whole photo</button>
+<button onClick="{{ rotate }}" style="flex:0 0 auto;width:44px;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,.18);border-radius:12px;background:rgba(255,255,255,.06);color:#fff" aria-label="Rotate">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"></path><path d="M21 3v6h-6"></path></svg>
+</button>
+</div>
+
+<sc-if value="{{ isFitMode2 }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="font-size:11.5px;font-weight:700;color:rgba(255,255,255,.6)">Border</span>
+<div style="flex:1;display:flex;gap:7px;overflow-x:auto">
+<sc-for list="{{ mattes }}" as="m" hint-placeholder-count="4">
+<button onClick="{{ m.select }}" style="flex:0 0 auto;width:28px;height:28px;border:2px solid {{ m.ring }};border-radius:50%;background:{{ m.swatch }}" aria-label="Border"></button>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:-4px">
+<span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.55)">{{ matteName }}</span>
+<span style="font-size:10.5px;font-weight:600;color:rgba(255,255,255,.35)">Spectra 6 inks · no dithering</span>
+</div>
+</sc-if>
+
+<sc-if value="{{ isFillMode }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;gap:12px">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.2-3.2"></path></svg>
+<input type="range" min="100" max="260" step="2" value="{{ zoom }}" onChange="{{ setZoom }}" onInput="{{ setZoom }}" style="flex:1;accent-color:#8fd4b4">
+<strong style="min-width:44px;text-align:right;font-size:12px;font-weight:800">{{ zoomLabel }}</strong>
+</div>
+</sc-if>
+
+<div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px">
+<sc-for list="{{ cropStrip }}" as="c" hint-placeholder-count="5">
+<button onClick="{{ c.select }}" style="position:relative;flex:0 0 auto;width:52px;height:52px;padding:0;border:2px solid {{ c.border }};border-radius:9px;background:{{ c.tint }};overflow:hidden">
+<span style="display:block;width:100%;height:100%;background-image:url({{ c.url }});background-size:cover;background-position:center"></span>
+<sc-if value="{{ c.flag }}" hint-placeholder-val="{{ false }}">
+<span style="position:absolute;top:-3px;right:-3px;width:12px;height:12px;border-radius:50%;background:#f59e0b;border:2px solid #14181c"></span>
+</sc-if>
+</button>
+</sc-for>
+</div>
+
+<div style="display:flex;gap:10px">
+<button onClick="{{ applyAll }}" style="flex:1;padding:13px;border:1.5px solid rgba(255,255,255,.2);border-radius:14px;background:rgba(255,255,255,.06);color:#fff;font-size:13px;font-weight:800">Apply to all</button>
+<button onClick="{{ nextCrop }}" style="flex:1.3;padding:13px;border:none;border-radius:14px;background:#2d5a4a;color:#fff;font-size:13.5px;font-weight:800">{{ cropNextLabel }}</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isImporting }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;height:100%;padding:40px">
+<span style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;border:4px solid #eef2ef;border-top-color:#2d5a4a;animation:spin .9s linear infinite"></span>
+<strong style="font-size:17px;font-weight:800">Adding photos…</strong>
+<span style="font-size:13px;font-weight:600;color:#64748b">{{ progressLabel }}</span>
+<div style="width:100%;max-width:240px;height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden">
+<div style="height:100%;width:{{ progressPct }};background:#2d5a4a;border-radius:999px;transition:width .25s"></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;height:100%;padding:36px">
+<span style="display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:#dcfce7;color:#15803d">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 13l4 4L19 7"></path></svg>
+</span>
+<strong style="font-size:19px;font-weight:800">{{ doneTitle }}</strong>
+<p style="margin:0;text-align:center;font-size:13.5px;font-weight:600;color:#64748b;line-height:1.5">{{ doneBody }}</p>
+<button onClick="{{ goHome }}" style="margin-top:8px;padding:13px 26px;border:none;border-radius:14px;background:#2d5a4a;color:#fff;font-size:14px;font-weight:800">Done</button>
+<button onClick="{{ openAddSheet }}" style="padding:11px 20px;border:1.5px solid #e2e8f0;border-radius:14px;background:#fff;font-size:13.5px;font-weight:700;color:#1e293b">Add more photos</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-around;padding:9px 12px 14px;background:rgba(255,255,255,.96);border-top:1px solid #e2e8f0;backdrop-filter:blur(8px)">
+<button onClick="{{ goFrames }}" style="display:grid;justify-items:center;gap:3px;padding:6px 18px;border:none;border-radius:12px;background:transparent;color:{{ framesTabColor }}">
+<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="14" rx="2"></rect><path d="M8 21h8"></path></svg>
+<span style="font-size:10.5px;font-weight:800">Frames</span>
+</button>
+<button onClick="{{ openAddSheet }}" style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;margin-top:-24px;border:4px solid #f7f5f2;border-radius:20px;background:#2d5a4a;color:#fff;box-shadow:0 8px 20px rgba(45,90,74,.35)" aria-label="Add photos">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+</button>
+<button onClick="{{ goAlbums }}" style="display:grid;justify-items:center;gap:3px;padding:6px 18px;border:none;border-radius:12px;background:transparent;color:{{ albumsTabColor }}">
+<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+<span style="font-size:10.5px;font-weight:800">Albums</span>
+</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ sheetAdd }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeSheet }}" style="position:absolute;inset:0;z-index:20;display:flex;align-items:flex-end;background:rgba(15,23,42,.45);animation:fadeIn .18s ease">
+<div onClick="{{ stop }}" style="width:100%;padding:10px 18px 24px;border-radius:24px 24px 0 0;background:#fff;animation:sheetUp .24s cubic-bezier(.2,.8,.2,1)">
+<span style="display:block;width:36px;height:4px;margin:0 auto 16px;border-radius:999px;background:#e2e8f0"></span>
+<strong style="display:block;font-size:17px;font-weight:800">Add photos</strong>
+<p style="margin:4px 0 16px;font-size:12.5px;font-weight:600;color:#64748b">Choose where the photos come from.</p>
+<div style="display:grid;gap:9px">
+<button onClick="{{ pickCollections }}" style="display:flex;align-items:center;gap:13px;padding:14px;border:1.5px solid #2d5a4a;border-radius:16px;background:#eef2ef;text-align:left;color:#1e293b">
+<span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;background:#2d5a4a;color:#fff">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 15l5-5 4 4 3-3 6 6"></path></svg>
+</span>
+<span style="flex:1;display:grid;gap:2px">
+<strong style="font-size:14px;font-weight:800">Phone collections</strong>
+<span style="font-size:11.5px;font-weight:600;color:#64748b">Camera, Screenshots, Google Photos</span>
+</span>
+<span style="padding:3px 9px;border-radius:999px;background:#2d5a4a;color:#fff;font-size:10px;font-weight:800">Fastest</span>
+</button>
+<button onClick="{{ pickCollections }}" style="display:flex;align-items:center;gap:13px;padding:14px;border:1.5px solid #e2e8f0;border-radius:16px;background:#fff;text-align:left;color:#1e293b">
+<span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;background:#f1f5f9;color:#64748b">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path></svg>
+</span>
+<span style="flex:1;display:grid;gap:2px">
+<strong style="font-size:14px;font-weight:800">Files</strong>
+<span style="font-size:11.5px;font-weight:600;color:#64748b">Downloads, Drive, SD card</span>
+</span>
+</button>
+<div style="display:flex;align-items:center;gap:13px;padding:14px;border:1.5px dashed #e2e8f0;border-radius:16px;background:#fafafa">
+<span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;background:#fff;border:1px solid #e2e8f0;color:#94a3b8">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M8 8l4-4 4 4"></path><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path></svg>
+</span>
+<span style="flex:1;display:grid;gap:2px">
+<strong style="font-size:14px;font-weight:800;color:#94a3b8">Google Photos Picker</strong>
+<span style="font-size:11.5px;font-weight:600;color:#94a3b8">Desktop only — the phone reads Google Photos directly</span>
+</span>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sheetSlideshow }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeSheet }}" style="position:absolute;inset:0;z-index:20;display:flex;align-items:flex-end;background:rgba(15,23,42,.45);animation:fadeIn .18s ease">
+<div onClick="{{ stop }}" style="width:100%;max-height:88%;overflow:auto;padding:10px 18px 22px;border-radius:24px 24px 0 0;background:#fff;animation:sheetUp .24s cubic-bezier(.2,.8,.2,1)">
+<span style="display:block;width:36px;height:4px;margin:0 auto 14px;border-radius:999px;background:#e2e8f0"></span>
+<strong style="display:block;font-size:17px;font-weight:800">Edit slideshow</strong>
+<p style="margin:4px 0 16px;font-size:12.5px;font-weight:600;color:#64748b">One active album slideshow per frame.</p>
+
+<div style="display:grid;gap:14px">
+<label style="display:grid;gap:6px;font-size:12px;font-weight:800;color:#1e293b">Album
+<select value="{{ formAlbum }}" onChange="{{ setFormAlbum }}" style="width:100%;padding:12px 13px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;font-weight:600;color:#1e293b">
+<sc-for list="{{ albums }}" as="a" hint-placeholder-count="4">
+<option value="{{ a.id }}">{{ a.name }}</option>
+</sc-for>
+</select>
+</label>
+
+<div style="display:grid;gap:6px">
+<span style="font-size:12px;font-weight:800">Refresh mode</span>
+<div style="display:flex;gap:8px">
+<button onClick="{{ setInterval2 }}" style="flex:1;padding:11px;border:1.5px solid {{ intervalBorder }};border-radius:12px;background:{{ intervalBg }};font-size:13px;font-weight:800;color:{{ intervalColor }}">Interval</button>
+<button onClick="{{ setFixed }}" style="flex:1;padding:11px;border:1.5px solid {{ fixedBorder }};border-radius:12px;background:{{ fixedBg }};font-size:13px;font-weight:800;color:{{ fixedColor }}">Fixed times</button>
+</div>
+</div>
+
+<sc-if value="{{ isIntervalMode }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;gap:14px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<label style="display:grid;gap:6px;font-size:12px;font-weight:800">Start
+<input type="time" value="{{ formBegin }}" onChange="{{ setBegin }}" style="width:100%;padding:11px 12px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-weight:600;color:#1e293b">
+</label>
+<label style="display:grid;gap:6px;font-size:12px;font-weight:800">End
+<input type="time" value="{{ formEnd }}" onChange="{{ setEnd }}" style="width:100%;padding:11px 12px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-weight:600;color:#1e293b">
+</label>
+</div>
+<label style="display:grid;gap:6px;font-size:12px;font-weight:800">Change photo every
+<div style="display:flex;align-items:center;gap:10px">
+<input type="range" min="15" max="360" step="15" value="{{ formInterval }}" onChange="{{ setIntervalMinutes }}" onInput="{{ setIntervalMinutes }}" style="flex:1;accent-color:#2d5a4a">
+<strong style="min-width:74px;text-align:right;font-size:13px;font-weight:800">{{ intervalLabel }}</strong>
+</div>
+</label>
+</div>
+</sc-if>
+
+<sc-if value="{{ isFixedMode }}" hint-placeholder-val="{{ false }}">
+<label style="display:grid;gap:6px;font-size:12px;font-weight:800">Refresh times
+<input value="{{ formTimes }}" onChange="{{ setTimes }}" placeholder="08:00, 20:00" style="width:100%;padding:11px 12px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-weight:600;color:#1e293b">
+</label>
+</sc-if>
+
+<div style="display:grid;gap:6px">
+<span style="font-size:12px;font-weight:800">Play order</span>
+<div style="display:flex;gap:8px">
+<button onClick="{{ setSequential }}" style="flex:1;padding:11px;border:1.5px solid {{ seqBorder }};border-radius:12px;background:{{ seqBg }};font-size:13px;font-weight:800;color:{{ seqColor }}">Sequential</button>
+<button onClick="{{ setShuffle }}" style="flex:1;padding:11px;border:1.5px solid {{ shufBorder }};border-radius:12px;background:{{ shufBg }};font-size:13px;font-weight:800;color:{{ shufColor }}">Shuffle</button>
+</div>
+</div>
+
+<label style="display:grid;gap:6px;font-size:12px;font-weight:800">Repeat every (days)
+<input type="number" min="1" value="{{ formDays }}" onChange="{{ setDays }}" style="width:100%;padding:11px 12px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-weight:600;color:#1e293b">
+</label>
+
+<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:13px;font-size:13px;font-weight:700">
+Sleep between refreshes
+<input type="checkbox" checked="{{ formIdle }}" onChange="{{ toggleIdle }}" style="width:18px;height:18px;accent-color:#2d5a4a">
+</label>
+<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:13px;font-size:13px;font-weight:700">
+Play now after saving
+<input type="checkbox" checked="{{ formPlayNow }}" onChange="{{ togglePlayNow }}" style="width:18px;height:18px;accent-color:#2d5a4a">
+</label>
+<span style="font-size:11.5px;font-weight:600;color:#94a3b8">Timezone {{ timezone }} · still images only</span>
+
+<div style="display:flex;gap:10px;margin-top:2px">
+<button onClick="{{ closeSheet }}" style="flex:1;padding:14px;border:1.5px solid #e2e8f0;border-radius:14px;background:#fff;font-size:14px;font-weight:800;color:#1e293b">Cancel</button>
+<button onClick="{{ saveSlideshow }}" style="flex:2;padding:14px;border:none;border-radius:14px;background:#2d5a4a;color:#fff;font-size:14px;font-weight:800">Save slideshow</button>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-import>
+<p style="max-width:412px;margin:0;font-size:11.5px;line-height:1.6;color:#64748b;text-align:center">Tap the green + to run the import flow. Frame card → slideshow settings (full API parity).</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:520,&quot;height&quot;:1060}}">
+const TINTS = ["#dbe3dd","#e6ded2","#dcdfe6","#e7e0e6","#d9e2e4","#e8e3d6","#dfe4d9","#e4dcdc","#d7dee7","#e9e1d9","#dde5e0","#e2dee9"];
+
+// Demo seed: one 16:9 landscape (needs framing) + one 3:2 already zoomed in.
+const SEED_PICK = ["camera-0", "camera-5"];
+const SEED_CROPS = { "camera-5": { zoom: 168, x: -18, y: 12, rot: 0, mode: "fill", matte: "blur", done: true } };
+
+function tile(prefix, i) {
+  return { id: prefix + "-" + i, label: "IMG_" + (2000 + i * 7), tint: TINTS[i % TINTS.length] };
+}
+
+class Component extends DCLogic {
+  state = {
+    view: "home",
+    tab: "frames",
+    sheet: "",
+    frameId: "f1",
+    albumId: "a1",
+    albumSel: [],
+    selectMode: false,
+    picked: SEED_PICK,
+    crops: SEED_CROPS,
+    cropIndex: 0,
+    bucket: "camera",
+    target: "a1",
+    playAfter: true,
+    progress: 0,
+    toast: "",
+    lastAdded: 0,
+    form: { album: "a1", mode: "INTERVAL", begin: "09:00", end: "18:00", interval: 120, times: "08:00, 20:00", days: 1, order: "SEQUENTIALLY", idle: true, playNow: true },
+    albums: [
+      { id: "a1", name: "Family 2026", count: 48, tint: "#dbe3dd" },
+      { id: "a2", name: "Kids Art", count: 12, tint: "#e6ded2" },
+      { id: "a3", name: "Travel — Japan", count: 86, tint: "#dcdfe6" },
+      { id: "a4", name: "Grandparents", count: 23, tint: "#e7e0e6" },
+    ],
+    frames: [
+      { id: "f1", name: "Living Room", online: true, portrait: true, res: "1200 × 1600 · portrait", album: "Family 2026" },
+      { id: "f2", name: "Kitchen", online: false, portrait: false, res: "1600 × 1200 · landscape", album: "Kids Art" },
+    ],
+  };
+
+  set = (patch) => this.setState(patch);
+  setForm = (patch) => this.setState((s) => ({ form: { ...s.form, ...patch } }));
+
+  aspectOf(ref) {
+    const n = typeof ref === "number" ? ref : Number(String(ref).split("-").pop()) || 0;
+    return [1.78, 0.75, 1, 1.33, 0.8, 1.5, 0.66, 1.2][n % 8];
+  }
+
+  numOf(ref) { return typeof ref === "number" ? ref : Number(String(ref).split("-").pop()) || 0; }
+  labelOf(ref) { return "IMG_" + (2000 + this.numOf(ref) * 7); }
+  tintOf(ref) { return TINTS[this.numOf(ref) % TINTS.length]; }
+
+  urlOf(ref) {
+    const n = this.numOf(ref), a = this.aspectOf(ref), L = 900;
+    const w = Math.round(a >= 1 ? L : L * a), h = Math.round(a >= 1 ? L / a : L);
+    return "https://picsum.photos/seed/inkjoy" + (n + 11) + "/" + w + "/" + h;
+  }
+
+  aspectName(ref) {
+    const a = this.aspectOf(ref);
+    return { 1.78: "16:9", 0.75: "3:4", 1: "1:1", 1.33: "4:3", 0.8: "4:5", 1.5: "3:2", 0.66: "2:3", 1.2: "6:5" }[a];
+  }
+
+  cropFor(id) {
+    return (this.state.crops || {})[id] || { zoom: 100, x: 0, y: 0, rot: 0, mode: "fill", matte: "blur", done: false };
+  }
+
+  patchCrop(id, patch) {
+    this.setState((s) => ({ crops: { ...(s.crops || {}), [id]: { ...this.cropFor(id), ...patch, done: true } } }));
+  }
+
+  geom(a, frameA, c, W, H) {
+    const cover = a > frameA ? { h: H, w: H * a } : { w: W, h: W / a };
+    const fit = a > frameA ? { w: W, h: W / a } : { h: H, w: H * a };
+    const base = c.mode === "fill" ? cover : fit;
+    const k = c.mode === "fill" ? c.zoom / 100 : 1;
+    return { w: base.w * k, h: base.h * k };
+  }
+
+  cropVals(f) {
+    const s = this.state;
+    const g = "#2d5a4a";
+    const frameA = f.portrait ? 0.75 : 4 / 3;
+    const W = f.portrait ? 234 : 300;
+    const H = f.portrait ? 312 : 225;
+    const ids = s.picked;
+    const idx = Math.min(s.cropIndex || 0, Math.max(ids.length - 1, 0));
+    const id = ids[idx];
+    const i = idx;
+    const c = this.cropFor(id);
+    const rawA = this.aspectOf(id);
+    const quarter = c.rot === 90 || c.rot === 270;
+    const a = quarter ? 1 / rawA : rawA;
+    const dim = this.geom(a, frameA, c, W, H);
+    const needs = ids.filter((pid) => Math.abs(this.aspectOf(pid) - frameA) > 0.02 && !this.cropFor(pid).done);
+    const clamp = (v, lim) => Math.max(-lim, Math.min(lim, v));
+    const limX = Math.max(0, (dim.w - W) / 2), limY = Math.max(0, (dim.h - H) / 2);
+    const tint = this.tintOf(id);
+    const photoUrl = this.urlOf(id);
+    const blurBg = "linear-gradient(rgba(15,23,42,.25), rgba(15,23,42,.25)), url(" + photoUrl + ") center/320% no-repeat";
+    // E Ink Spectra 6 renders only these six inks natively; anything else dithers.
+    const mattes = [
+      { hex: "blur", name: "Blurred photo", swatch: blurBg },
+      { hex: "#FFFFFF", name: "White · Spectra 6", swatch: "#FFFFFF" },
+      { hex: "#000000", name: "Black · Spectra 6", swatch: "#000000" },
+      { hex: "#A02020", name: "Red · Spectra 6", swatch: "#A02020" },
+      { hex: "#F0E050", name: "Yellow · Spectra 6", swatch: "#F0E050" },
+      { hex: "#608050", name: "Green · Spectra 6", swatch: "#608050" },
+      { hex: "#5080B8", name: "Blue · Spectra 6", swatch: "#5080B8" },
+    ];
+    const seg = (on) => ({ border: on ? "#8fd4b4" : "rgba(255,255,255,.18)", bg: on ? "rgba(143,212,180,.16)" : "rgba(255,255,255,.06)", color: on ? "#bdf0d8" : "rgba(255,255,255,.7)" });
+    const fill = seg(c.mode === "fill"), fit = seg(c.mode === "fit");
+
+    return {
+      isCrop: s.view === "crop",
+      cropLabel: needs.length ? (needs.length === 1 ? "1 photo doesn't fit the frame" : needs.length + " photos don't fit the frame") : "All " + ids.length + " framed for " + f.name,
+      cropSubLabel: needs.length ? "Frame is " + (f.portrait ? "3:4 portrait" : "4:3 landscape") + " · edges would be trimmed" : "Tap to adjust any framing",
+      cropBorder: needs.length ? "#fcd34d" : "#e2e8f0",
+      cropIconBg: needs.length ? "#fffbeb" : "#eef2ef",
+      cropIconColor: needs.length ? "#b45309" : g,
+      openCrop: () => this.set({ view: "crop", cropIndex: 0 }),
+      closeCrop: () => this.set({ view: "review" }),
+      cropProgressLabel: (idx + 1) + " of " + ids.length + " · " + (f.portrait ? "1200 × 1600" : "1600 × 1200"),
+      cropPhotoLabel: this.labelOf(id) + " · " + this.aspectName(id),
+      cropTint: tint, cropUrl: this.urlOf(id),
+      stageW: W + "px", stageH: H + "px",
+      imgW: dim.w + "px", imgH: dim.h + "px",
+      imgOffX: (-dim.w / 2 + clamp(c.x, limX)) + "px",
+      imgOffY: (-dim.h / 2 + clamp(c.y, limY)) + "px",
+      matteColor: c.mode === "fit" && c.matte !== "blur" ? c.matte : "#0b0f12",
+      photoEdge: "none",
+      showBlurBack: c.mode === "fit" && c.matte === "blur",
+      blurBg: blurBg,
+      gridOpacity: this._dragging ? 1 : 0,
+      cropHint: c.mode === "fill" ? "Drag to reposition · pinch or slide to zoom" : "Whole photo shown with a printed border",
+      isFillMode: c.mode === "fill", isFitMode2: c.mode === "fit",
+      fillBorder: fill.border, fillBg: fill.bg, fillColor: fill.color,
+      fitBorder: fit.border, fitBg: fit.bg, fitColor: fit.color,
+      setFill: () => this.patchCrop(id, { mode: "fill" }),
+      setFitMode: () => this.patchCrop(id, { mode: "fit" }),
+      rotate: () => this.patchCrop(id, { rot: (c.rot + 90) % 360, x: 0, y: 0 }),
+      rotTransform: "rotate(" + c.rot + "deg)",
+      rotBadge: c.rot ? c.rot + "°" : "",
+      zoom: c.zoom, zoomLabel: c.zoom + "%",
+      setZoom: (e) => this.patchCrop(id, { zoom: Number(e.target.value) }),
+      mattes: mattes.map((m) => ({ swatch: m.swatch, ring: c.matte === m.hex ? "#8fd4b4" : "rgba(255,255,255,.25)", select: () => this.patchCrop(id, { matte: m.hex }) })),
+      matteName: mattes.find((m) => m.hex === c.matte)?.name || "Blurred photo",
+      resetCrop: () => this.setState((st) => { const n = { ...(st.crops || {}) }; delete n[id]; return { crops: n }; }),
+      cropStrip: ids.map((pid, k) => ({
+        tint: this.tintOf(pid), url: this.urlOf(pid),
+        border: k === idx ? "#8fd4b4" : "rgba(255,255,255,.12)",
+        flag: Math.abs(this.aspectOf(pid) - frameA) > 0.02 && !this.cropFor(pid).done,
+        select: () => this.set({ cropIndex: k }),
+      })),
+      cropNextLabel: idx < ids.length - 1 ? "Next photo" : "Done",
+      nextCrop: () => idx < ids.length - 1 ? this.set({ cropIndex: idx + 1 }) : this.set({ view: "review" }),
+      applyAll: () => this.setState((st) => {
+        const n = { ...(st.crops || {}) };
+        ids.forEach((pid) => { n[pid] = { ...c, done: true }; });
+        return { crops: n, view: "review" };
+      }),
+      dragStart: (e) => {
+        if (c.mode !== "fill") return;
+        this._pts = this._pts || new Map();
+        this._pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        e.currentTarget.setPointerCapture && e.currentTarget.setPointerCapture(e.pointerId);
+        if (this._pts.size === 2) {
+          const [p1, p2] = [...this._pts.values()];
+          this._pinch = { dist: Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1, zoom: c.zoom };
+          this._d = null;
+        } else {
+          this._d = { px: e.clientX, py: e.clientY, x: clamp(c.x, limX), y: clamp(c.y, limY) };
+        }
+        this._dragging = true;
+        this.forceUpdate();
+      },
+      dragMove: (e) => {
+        if (!this._pts || !this._pts.has(e.pointerId)) return;
+        this._pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (this._pinch && this._pts.size >= 2) {
+          const [p1, p2] = [...this._pts.values()];
+          const d = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          const z = Math.round(Math.max(100, Math.min(260, this._pinch.zoom * (d / this._pinch.dist))));
+          this.patchCrop(id, { zoom: z });
+          return;
+        }
+        if (!this._d) return;
+        this.patchCrop(id, {
+          x: clamp(this._d.x + (e.clientX - this._d.px), limX),
+          y: clamp(this._d.y + (e.clientY - this._d.py), limY),
+        });
+      },
+      dragEnd: (e) => {
+        if (this._pts) this._pts.delete(e.pointerId);
+        if (!this._pts || this._pts.size < 2) this._pinch = null;
+        if (!this._pts || this._pts.size === 0) { this._d = null; this._dragging = false; }
+        this.forceUpdate();
+      },
+    };
+  }
+
+  fmtInterval(m) {
+    if (m < 60) return m + " min";
+    const h = Math.floor(m / 60), r = m % 60;
+    return r ? h + " h " + r + " m" : h + (h === 1 ? " hour" : " hours");
+  }
+
+  renderVals() {
+    const s = this.state;
+    const f = s.frames.find((x) => x.id === s.frameId) || s.frames[0];
+    const album = s.albums.find((x) => x.id === s.albumId) || s.albums[0];
+    const g = "#2d5a4a";
+    const pick = (on) => ({ border: on ? g : "#e2e8f0", bg: on ? "#eef2ef" : "#fff", color: on ? g : "#64748b" });
+    const iv = pick(s.form.mode === "INTERVAL"), fx = pick(s.form.mode === "FIXED");
+    const sq = pick(s.form.order === "SEQUENTIALLY"), sh = pick(s.form.order === "SHUFFLE");
+    const roll = Array.from({ length: 24 }, (_, i) => tile(s.bucket, i));
+    const albumPhotos = Array.from({ length: 15 }, (_, i) => tile(s.albumId, i + 3));
+    const buckets = [
+      { key: "camera", label: "Camera" },
+      { key: "gphotos", label: "Google Photos" },
+      { key: "screens", label: "Screenshots" },
+      { key: "downloads", label: "Downloads" },
+    ];
+
+    return {
+      isHome: s.view === "home", isAlbums: s.view === "albums", isAlbum: s.view === "album",
+      isFrame: s.view === "frame", isPick: s.view === "pick", isReview: s.view === "review",
+      isImporting: s.view === "importing", isDone: s.view === "done",
+      showTabs: ["home", "albums"].includes(s.view),
+      toast: s.toast,
+      framesTabColor: s.view === "home" ? g : "#94a3b8",
+      albumsTabColor: s.view === "albums" ? g : "#94a3b8",
+      frameCountLabel: s.frames.length + " connected",
+
+      frames: s.frames.map((x) => ({
+        name: x.name, status: x.online ? "Online" : "Offline",
+        dot: x.online ? "#34c759" : "#ef4444",
+        tint: x.online ? "#dbe3dd" : "#e5e7eb",
+        boxW: x.portrait ? "56px" : "100px",
+        thumbLabel: "", url: this.urlOf(x.portrait ? 1 : 3),
+        nowPlaying: (x.online ? "Now playing · " : "Last played · ") + x.album,
+        schedule: "Every 2 h · 09:00–18:00 · Sequential",
+        open: () => this.set({ view: "frame", frameId: x.id }),
+      })),
+      recentAlbums: s.albums.slice(0, 2).map((a, k) => ({
+        name: a.name, count: a.count, tint: a.tint, thumbLabel: a.count + " photos", url: this.urlOf(k + 2),
+        open: () => this.set({ view: "album", albumId: a.id, albumSel: [], selectMode: false }),
+      })),
+      albums: s.albums.map((a, k) => ({
+        id: a.id, name: a.name, count: a.count, tint: a.tint, thumbLabel: "", url: this.urlOf(k + 2),
+        open: () => this.set({ view: "album", albumId: a.id, albumSel: [], selectMode: false }),
+      })),
+
+      albumName: album.name,
+      albumSubtitle: album.count + " photos · synced",
+      addToThisAlbum: () => this.set({ view: "pick", pickOrigin: "album", picked: SEED_PICK, crops: SEED_CROPS, cropIndex: 0, bucket: "camera", target: s.albumId, selectMode: false, albumSel: [] }),
+      albumPhotos: albumPhotos.map((p) => {
+        const on = s.albumSel.includes(p.id);
+        return {
+          label: p.label, tint: p.tint, checked: on, url: this.urlOf(p.id),
+          ring: on ? "inset 0 0 0 3px " + g : "none",
+          toggle: () => {
+            if (!s.selectMode) return this.set({ selectMode: true, albumSel: [p.id] });
+            this.set({ albumSel: on ? s.albumSel.filter((i) => i !== p.id) : s.albumSel.concat(p.id) });
+          },
+        };
+      }),
+      hasAlbumSelection: s.albumSel.length > 0,
+      albumSelectionLabel: s.albumSel.length + " selected",
+      clearAlbumSelection: () => this.set({ albumSel: [], selectMode: false }),
+      deletePhotos: () => this.set({ albumSel: [], selectMode: false, view: "album", toast: "" }),
+
+      frameName: f.name, frameStatus: f.online ? "Online" : "Offline",
+      frameBigW: f.portrait ? "140px" : "248px",
+      frameTint: f.online ? "#dbe3dd" : "#e5e7eb",
+      frameThumbLabel: "", frameUrl: this.urlOf(f.portrait ? 1 : 3),
+      frameSpec: f.res,
+      scheduleAlbum: s.albums.find((a) => a.id === s.form.album)?.name || f.album,
+      scheduleTicks: [9, 11, 13, 15, 17].map((h) => ({ left: (h / 24) * 100 + "%" })),
+      scheduleSummary: s.form.mode === "INTERVAL"
+        ? "Every " + this.fmtInterval(s.form.interval) + " · " + s.form.begin + "–" + s.form.end
+        : "At " + s.form.times,
+      scheduleRows: [
+        { label: "Play order", value: s.form.order === "SHUFFLE" ? "Shuffle" : "Sequential" },
+        { label: "Repeat every", value: s.form.days + (s.form.days === 1 ? " day" : " days") },
+        { label: "Between refreshes", value: s.form.idle ? "Sleep" : "Stay awake" },
+        { label: "Timezone", value: "Europe/London" },
+      ],
+      openSlideshow: () => this.set({ sheet: "slideshow" }),
+      playNow: () => this.set({ toast: "Playing on " + f.name + " now.", view: "home" }),
+
+      buckets: buckets.map((b) => {
+        const on = s.bucket === b.key;
+        return { label: b.label, border: on ? g : "#e2e8f0", bg: on ? "#eef2ef" : "#fff", color: on ? g : "#64748b", select: () => this.set({ bucket: b.key }) };
+      }),
+      rollPhotos: roll.map((p) => {
+        const on = s.picked.includes(p.id);
+        const pa = this.aspectOf(p.id);
+        return {
+          label: p.label, tint: p.tint, checked: on,
+          ratio: this.aspectName(p.id), url: this.urlOf(p.id),
+          innerW: pa >= 1 ? "100%" : (pa * 100) + "%",
+          innerH: pa >= 1 ? (100 / pa) + "%" : "100%",
+          ringColor: on ? g : "rgba(255,255,255,.9)", fill: on ? g : "rgba(15,23,42,.18)",
+          toggle: () => this.set({ picked: on ? s.picked.filter((i) => i !== p.id) : s.picked.concat(p.id) }),
+        };
+      }),
+      pickCountLabel: s.picked.length ? s.picked.length + " selected" : "Tap photos to select",
+      nextBg: s.picked.length ? g : "#cbd5e1",
+      toReview: () => s.picked.length && this.set({ view: "review" }),
+
+      pickedPreview: s.picked.map((id) => ({ label: this.labelOf(id), tint: this.tintOf(id), url: this.urlOf(id) })),
+      ...this.cropVals(f),
+      targetOptions: s.albums.map((a, k) => {
+        const on = s.target === a.id;
+        return {
+          name: a.name, count: a.count, tint: a.tint, checked: on, url: this.urlOf(k + 2),
+          border: on ? g : "#e2e8f0", ring: on ? g : "#cbd5e1", fill: on ? g : "#fff",
+          select: () => this.set({ target: a.id }),
+        };
+      }),
+      playAfter: s.playAfter,
+      togglePlayAfter: () => this.set({ playAfter: !s.playAfter }),
+      importCta: "Add " + s.picked.length + (s.picked.length === 1 ? " photo" : " photos"),
+      startImport: () => {
+        const n = s.picked.length;
+        if (!n) return;
+        this.set({ view: "importing", progress: 0 });
+        let done = 0;
+        const t = setInterval(() => {
+          done += 1;
+          this.set({ progress: done });
+          if (done >= n) {
+            clearInterval(t);
+            setTimeout(() => this.setState((st) => ({
+              view: "done", lastAdded: n, picked: [],
+              albums: st.albums.map((a) => (a.id === st.target ? { ...a, count: a.count + n } : a)),
+            })), 350);
+          }
+        }, Math.max(120, 900 / Math.max(n, 1)));
+      },
+      progressLabel: s.progress + " of " + s.picked.length + " uploaded",
+      progressPct: (s.picked.length ? (s.progress / s.picked.length) * 100 : 0) + "%",
+      doneTitle: s.lastAdded + (s.lastAdded === 1 ? " photo added" : " photos added"),
+      doneBody: "Saved to " + (s.albums.find((a) => a.id === s.target)?.name || "album") + ".",
+
+      formAlbum: s.form.album, formBegin: s.form.begin, formEnd: s.form.end,
+      formInterval: s.form.interval, formTimes: s.form.times, formDays: s.form.days,
+      formIdle: s.form.idle, formPlayNow: s.form.playNow,
+      isIntervalMode: s.form.mode === "INTERVAL", isFixedMode: s.form.mode === "FIXED",
+      intervalLabel: this.fmtInterval(s.form.interval),
+      intervalBorder: iv.border, intervalBg: iv.bg, intervalColor: iv.color,
+      fixedBorder: fx.border, fixedBg: fx.bg, fixedColor: fx.color,
+      seqBorder: sq.border, seqBg: sq.bg, seqColor: sq.color,
+      shufBorder: sh.border, shufBg: sh.bg, shufColor: sh.color,
+      timezone: "Europe/London",
+      setFormAlbum: (e) => this.setForm({ album: e.target.value }),
+      setInterval2: () => this.setForm({ mode: "INTERVAL" }),
+      setFixed: () => this.setForm({ mode: "FIXED" }),
+      setBegin: (e) => this.setForm({ begin: e.target.value }),
+      setEnd: (e) => this.setForm({ end: e.target.value }),
+      setIntervalMinutes: (e) => this.setForm({ interval: Number(e.target.value) }),
+      setTimes: (e) => this.setForm({ times: e.target.value }),
+      setDays: (e) => this.setForm({ days: Number(e.target.value) || 1 }),
+      setSequential: () => this.setForm({ order: "SEQUENTIALLY" }),
+      setShuffle: () => this.setForm({ order: "SHUFFLE" }),
+      toggleIdle: () => this.setForm({ idle: !s.form.idle }),
+      togglePlayNow: () => this.setForm({ playNow: !s.form.playNow }),
+      saveSlideshow: () => this.set({ sheet: "", toast: "Slideshow saved for " + f.name + "." , view: "home" }),
+
+      sheetAdd: s.sheet === "add", sheetSlideshow: s.sheet === "slideshow",
+      openAddSheet: () => this.set({ sheet: "add", view: "home", toast: "" }),
+      pickCollections: () => this.set({ sheet: "", view: "pick", pickOrigin: "home", picked: SEED_PICK, crops: SEED_CROPS, cropIndex: 0, bucket: "camera" }),
+      closeSheet: () => this.set({ sheet: "" }),
+      stop: (e) => e.stopPropagation(),
+      noop: () => {},
+      back: () => this.set({ view: s.view === "review" ? "pick" : s.view === "pick" ? (s.pickOrigin || "home") : s.view === "album" ? "albums" : "home", selectMode: false, albumSel: [] }),
+      goHome: () => this.set({ view: "home", tab: "frames", toast: "" }),
+      goFrames: () => this.set({ view: "home", tab: "frames" }),
+      goAlbums: () => this.set({ view: "albums", tab: "albums" }),
+      newAlbum: () => this.setState((st) => ({
+        albums: st.albums.concat({ id: "a" + (st.albums.length + 1), name: "New album", count: 0, tint: TINTS[st.albums.length % TINTS.length] }),
+      })),
+      refresh: () => this.set({ toast: "Frames refreshed." }),
+    };
+  }
+}
+</script>
+</body>
+</html>

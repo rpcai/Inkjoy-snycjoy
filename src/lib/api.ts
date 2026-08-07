@@ -15,11 +15,12 @@ type RequestOptions = {
 };
 
 async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(path, {
     method: options.method || "GET",
-    headers: options.body ? { "Content-Type": "application/json" } : undefined,
+    headers: options.body && !isFormData ? { "Content-Type": "application/json" } : undefined,
     credentials: "include",
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: isFormData ? (options.body as FormData) : options.body ? JSON.stringify(options.body) : undefined,
   });
 
   const payload = await response.json().catch(() => ({}));
@@ -108,4 +109,9 @@ export const api = {
         })),
       },
     }),
+  uploadLocalPhoto: (albumId: string, blob: Blob, filename: string) => {
+    const body = new FormData();
+    body.set("file", blob, filename);
+    return apiFetch<{ ok: true }>(`/api/inkjoy/albums/${albumId}/photos`, { method: "POST", body });
+  },
 };

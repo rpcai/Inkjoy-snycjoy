@@ -2,9 +2,11 @@
 
 ## Decision
 
-Use a thin auth and API boundary. Build it locally first for easier debugging, but keep the boundary compatible with Cloudflare Pages Functions:
+Use a thin auth and API boundary, running as a single Cloudflare Worker (`server/index.ts`) in both
+local dev (via `@cloudflare/vite-plugin`, the real Workers runtime) and production — not a separate
+Node backend kept "compatible" with a later port:
 
-- The browser submits Inkjoy email/password to the local backend or Pages Function over HTTPS.
+- The browser submits Inkjoy email/password to the Worker's `/api/*` routes over HTTPS.
 - The backend exchanges those credentials for an Inkjoy JWT.
 - The password is discarded immediately.
 - The backend stores only token material and expiry in a secure, encrypted, httpOnly cookie.

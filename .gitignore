@@ -4,7 +4,6 @@ dist/
 .dev.vars
 .env
 .env.*
-!.env.example
 !.env.official.example
 official-inspection/
 *.local

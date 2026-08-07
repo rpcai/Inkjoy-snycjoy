@@ -1,4 +1,4 @@
-import type { AppSession } from "./session";
+import type { AppSession, Env } from "./session";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -11,24 +11,24 @@ const GOOGLE_SCOPE = [
 ].join(" ");
 const GOOGLE_PICKER_SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
 
-export function getAppUrl() {
-  return process.env.PUBLIC_APP_URL || "http://localhost:5173";
+export function getAppUrl(env: Env) {
+  return env.PUBLIC_APP_URL || "http://localhost:5173";
 }
 
-export function getGoogleRedirectUri() {
-  return process.env.GOOGLE_REDIRECT_URI || `${getAppUrl()}/api/google/oauth/callback`;
+export function getGoogleRedirectUri(env: Env) {
+  return env.GOOGLE_REDIRECT_URI || `${getAppUrl(env)}/api/google/oauth/callback`;
 }
 
-export function getGoogleClientId() {
-  return process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "";
+export function getGoogleClientId(env: Env) {
+  return env.GOOGLE_CLIENT_ID || "";
 }
 
-export function isGoogleConfigured() {
-  return Boolean(getGoogleClientId());
+export function isGoogleConfigured(env: Env) {
+  return Boolean(getGoogleClientId(env));
 }
 
-export function createGoogleAuthUrl(state: string) {
-  const clientId = getGoogleClientId();
+export function createGoogleAuthUrl(state: string, env: Env) {
+  const clientId = getGoogleClientId(env);
 
   if (!clientId) {
     throw new Error("GOOGLE_CLIENT_ID is not configured");
@@ -36,7 +36,7 @@ export function createGoogleAuthUrl(state: string) {
 
   const url = new URL(GOOGLE_AUTH_URL);
   url.searchParams.set("client_id", clientId);
-  url.searchParams.set("redirect_uri", getGoogleRedirectUri());
+  url.searchParams.set("redirect_uri", getGoogleRedirectUri(env));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", GOOGLE_SCOPE);
   url.searchParams.set("state", state);
@@ -45,9 +45,9 @@ export function createGoogleAuthUrl(state: string) {
   return url.toString();
 }
 
-export async function exchangeGoogleCode(code: string) {
-  const clientId = getGoogleClientId();
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+export async function exchangeGoogleCode(code: string, env: Env) {
+  const clientId = getGoogleClientId(env);
+  const clientSecret = env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     throw new Error("Google OAuth client is not configured");
@@ -58,7 +58,7 @@ export async function exchangeGoogleCode(code: string) {
     client_secret: clientSecret,
     code,
     grant_type: "authorization_code",
-    redirect_uri: getGoogleRedirectUri(),
+    redirect_uri: getGoogleRedirectUri(env),
   });
 
   const response = await fetch(GOOGLE_TOKEN_URL, {

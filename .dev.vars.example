@@ -1,3 +1,5 @@
+# Copy to .dev.vars for local `vite dev` (wrangler reads this file automatically).
+
 # Public Google OAuth client ID for the Photos Picker API.
 # Create a Web application OAuth client and add http://localhost:5173 as an authorized JavaScript origin.
 GOOGLE_CLIENT_ID=
@@ -9,6 +11,3 @@ GOOGLE_CLIENT_ID=
 # Used to encrypt local/backend session cookies.
 SESSION_SECRET=
 PUBLIC_APP_URL=http://localhost:5173
-
-# Optional default; users can still choose in the UI.
-VITE_INKJOY_DEFAULT_SERVER=global
