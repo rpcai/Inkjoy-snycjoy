@@ -19,8 +19,7 @@ export function pickLocalPhotos(): Promise<LocalPickedPhoto[]> {
       async () => {
         const files = Array.from(input.files || []);
         input.remove();
-        const sources = await Promise.all(files.map(toPickedSource));
-        resolve(sources.filter((source): source is LocalPickedPhoto => source !== null));
+        resolve(await toLocalPickedPhotos(files));
       },
       { once: true },
     );
@@ -41,6 +40,11 @@ export function pickLocalPhotos(): Promise<LocalPickedPhoto[]> {
     document.body.append(input);
     input.click();
   });
+}
+
+export async function toLocalPickedPhotos(files: File[]): Promise<LocalPickedPhoto[]> {
+  const sources = await Promise.all(files.map(toPickedSource));
+  return sources.filter((source): source is LocalPickedPhoto => source !== null);
 }
 
 async function toPickedSource(file: File): Promise<LocalPickedPhoto | null> {

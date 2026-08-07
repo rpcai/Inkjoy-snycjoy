@@ -38,6 +38,12 @@ app.notFound((c) => {
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
+// Fallback for the Android share target: share-sw.js normally intercepts this POST
+// client-side (see public/share-sw.js) so the shared files never leave the device. This
+// route only fires if the service worker hasn't activated yet; it can't recover the files
+// (no durable photo storage), but it still redirects into the app instead of 404ing.
+app.post("/share-target", (c) => c.redirect("/", 303));
+
 app.get("/api/session", async (c) => {
   const session = await readSession(c);
   const googleConfigured = isGoogleConfigured(c.env);

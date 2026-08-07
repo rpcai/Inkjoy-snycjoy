@@ -25,7 +25,8 @@ import {
 } from "./lib/googleIdentity";
 import { compositeCrop, loadImageBitmap } from "./lib/compositeCanvas";
 import { cropStageFrame, defaultCropAdjustment } from "./lib/crop";
-import { pickLocalPhotos } from "./lib/localPhotos";
+import { pickLocalPhotos, toLocalPickedPhotos } from "./lib/localPhotos";
+import { consumeSharedFiles, isShareTargetLaunch } from "./lib/shareTarget";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { SyncjoyLogo } from "./components/SyncjoyLogo";
 import { NavItem } from "./components/NavItem";
@@ -83,10 +84,17 @@ function App() {
   const [crops, setCrops] = useState<Record<string, CropAdjustment>>({});
   const [cropIndex, setCropIndex] = useState(0);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
-  const [localImportResult, setLocalImportResult] = useState<{ imported: number; albumName: string } | null>(null);
+  const [localImportResult, setLocalImportResult] = useState<{
+    imported: number;
+    albumName: string;
+    error?: string;
+  } | null>(null);
 
   const selectedDevice = devices.find((device) => device.deviceId === selectedDeviceId);
   const albumDetailAlbum = albums.find((album) => album.albumId === albumDetailAlbumId);
+  const activeCarouselForDevice = carousels.find(
+    (carousel) => carousel.deviceId === selectedDeviceId && carousel.status === "ACTIVE" && carousel.albumIdList?.length,
+  );
   const panelSize = useMemo(() => {
     const width = selectedDevice?.resolution?.width;
     const height = selectedDevice?.resolution?.height;
@@ -113,6 +121,9 @@ function App() {
   );
 
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/share-sw.js").catch(() => {});
+    }
     void boot();
   }, []);
 
@@ -142,6 +153,12 @@ function App() {
       setAlbumDetailAlbumId("");
     }
   }, [albumDetailAlbumId, albums]);
+
+  useEffect(() => {
+    if (picked.length && !albums.some((album) => album.albumId === pickTargetAlbumId)) {
+      setPickTargetAlbumId(albums[0]?.albumId || "");
+    }
+  }, [albums, picked.length, pickTargetAlbumId]);
 
   useEffect(() => {
     if (!pickerModalOpen || !pickerSession || pickerSession.mediaItemsSet) return;
@@ -216,7 +233,21 @@ function App() {
     setSession(state);
     if (state.inkjoy.connected) {
       await loadInkjoyData();
+      await consumeSharedFilesIfPresent();
     }
+  }
+
+  async function consumeSharedFilesIfPresent() {
+    if (!isShareTargetLaunch(window.location.search)) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    const files = await consumeSharedFiles();
+    const items = await toLocalPickedPhotos(files);
+    if (!items.length) return;
+    setPickOrigin("home");
+    setPicked(items);
+    setCrops(Object.fromEntries(items.map((item) => [item.id, defaultCropAdjustment()])));
+    setCropIndex(0);
+    pushView("review");
   }
 
   async function loadInkjoyData() {
@@ -483,10 +514,11 @@ function App() {
   }
 
   async function handleConfirmImport() {
-    if (!pickTargetAlbumId || !picked.length) return;
+    if (!pickTargetAlbumId || !picked.length || view === "importing") return;
     setView("importing");
     setImportProgress({ done: 0, total: picked.length });
     let imported = 0;
+    let lastError = "";
 
     for (const item of picked) {
       try {
@@ -496,13 +528,18 @@ function App() {
         await api.uploadLocalPhoto(pickTargetAlbumId, blob, `${item.id}.jpg`);
         imported += 1;
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : "Upload failed");
+        lastError = caught instanceof Error ? caught.message : "Upload failed";
+        setError(lastError);
       }
       setImportProgress((prev) => ({ ...prev, done: prev.done + 1 }));
     }
 
     const targetAlbum = albums.find((album) => album.albumId === pickTargetAlbumId);
-    setLocalImportResult({ imported, albumName: targetAlbum?.albumName || "your album" });
+    setLocalImportResult({
+      imported,
+      albumName: targetAlbum?.albumName || "your album",
+      error: imported === 0 ? lastError : undefined,
+    });
     await loadPhotos(pickTargetAlbumId);
     await loadInkjoyData();
     setView("done");
@@ -531,15 +568,16 @@ function App() {
       api.activateAlbum({
         deviceId: selectedDeviceId,
         albumId: selectedAlbumId,
+        strategyId: activeCarouselForDevice?.strategyId,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         playOrder: String(form.get("playOrder") || "SEQUENTIALLY") as "SEQUENTIALLY" | "SHUFFLE",
         updateType,
         updateDays: Number(form.get("updateDays") || 1),
         updateTimeList:
           updateType === "FIXED"
-            ? String(form.get("updateTimeList") || "08:00,20:00")
-                .split(",")
-                .map((item) => item.trim())
+            ? form
+                .getAll("updateTimeList")
+                .map((item) => String(item).trim())
                 .filter(Boolean)
             : undefined,
         beginTime: String(form.get("beginTime") || "09:00"),
@@ -621,6 +659,7 @@ function App() {
           albums={albums}
           selectedAlbumId={selectedAlbumId}
           onSelectAlbum={setSelectedAlbumId}
+          activeCarousel={activeCarouselForDevice}
           onActivate={handleActivateAlbum}
           onClose={() => setSlideshowEditorOpen(false)}
         />
@@ -665,7 +704,12 @@ function App() {
             device={selectedDevice}
             carousels={carousels}
             onBack={goBack}
-            onEditSlideshow={() => setSlideshowEditorOpen(true)}
+            onEditSlideshow={() => {
+              if (activeCarouselForDevice?.albumIdList?.[0]) {
+                setSelectedAlbumId(activeCarouselForDevice.albumIdList[0]);
+              }
+              setSlideshowEditorOpen(true);
+            }}
             onPlayNow={() => void handlePlayNow(selectedDevice.deviceId)}
           />
         ) : null}
@@ -697,7 +741,7 @@ function App() {
             onResetCrop={handleResetCrop}
             onApplyToAll={handleApplyToAll}
             onBack={goBack}
-            onFinish={goBack}
+            onFinish={() => void handleConfirmImport()}
           />
         ) : null}
 
@@ -707,6 +751,7 @@ function App() {
           <Done
             addedCount={localImportResult.imported}
             albumName={localImportResult.albumName}
+            error={localImportResult.error}
             onDone={handleDoneFinish}
             onAddMore={handleAddMore}
           />

@@ -1117,6 +1117,58 @@ a {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.form-radio-row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 1.25rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.radio-option input {
+  width: auto;
+  margin-top: 0;
+}
+
+.form-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.switch-times-field {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.switch-times-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.switch-time-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.switch-time-row input[type="time"] {
+  flex: 1;
+}
+
+.switch-time-add {
+  justify-self: start;
+}
+
 .modal-actions {
   grid-column: 1 / -1;
   display: flex;
@@ -2066,6 +2118,11 @@ a {
   border-radius: 50%;
   background: #dcfce7;
   color: #15803d;
+}
+
+.done-check-circle-error {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .done-actions {
