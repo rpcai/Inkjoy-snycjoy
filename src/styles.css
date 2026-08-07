@@ -71,6 +71,15 @@ select:focus {
   box-shadow: 0 0 0 3px rgb(45 90 74 / 15%);
 }
 
+input:disabled,
+select:disabled {
+  background: #f1f5f9;
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
 label {
   display: block;
   font-size: 0.85rem;
@@ -1229,7 +1238,7 @@ a {
 /* Mobile app shell: bottom tab bar + centre FAB, replaces the sidebar on touch/narrow viewports. */
 
 .view-container.mobile {
-  padding-bottom: 108px;
+  padding-bottom: calc(108px + env(safe-area-inset-bottom, 0));
 }
 
 .bottom-tab-bar {
@@ -1241,7 +1250,10 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  /* Grow the bar to absorb the safe-area inset as extra bottom padding, rather than
+     shrinking the 64px content row into it — otherwise align-items: center centers
+     within the shrunk box and the tab items sit visibly too high. */
+  height: calc(64px + env(safe-area-inset-bottom, 0));
   padding: 0 2.5rem;
   padding-bottom: env(safe-area-inset-bottom, 0);
   background: var(--card);
@@ -2177,6 +2189,69 @@ a {
   color: #fff;
   font-size: 0.65rem;
   font-weight: 800;
+}
+
+.photo-view-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgb(15 23 42 / 55%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.photo-view-badge:hover {
+  background: rgb(15 23 42 / 75%);
+}
+
+.photo-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: rgb(10 12 15 / 92%);
+}
+
+.photo-viewer-close {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top, 0));
+  right: 14px;
+}
+
+.photo-viewer-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 82vh;
+}
+
+.photo-viewer-stage img {
+  max-width: 92vw;
+  max-height: 82vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 50%);
+}
+
+.photo-viewer-caption {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  color: rgb(255 255 255 / 85%);
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .selection-bar {

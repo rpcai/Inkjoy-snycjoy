@@ -24,7 +24,7 @@ import {
   toAutoclosePickerUri,
 } from "./lib/googleIdentity";
 import { compositeCrop, loadImageBitmap } from "./lib/compositeCanvas";
-import { cropStageFrame, defaultCropAdjustment } from "./lib/crop";
+import { cropStageFrame, defaultCropAdjustment, type Size } from "./lib/crop";
 import { pickLocalPhotos, toLocalPickedPhotos } from "./lib/localPhotos";
 import { consumeSharedFiles, isShareTargetLaunch } from "./lib/shareTarget";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -84,6 +84,7 @@ function App() {
   const [pickTargetAlbumId, setPickTargetAlbumId] = useState("");
   const [crops, setCrops] = useState<Record<string, CropAdjustment>>({});
   const [cropIndex, setCropIndex] = useState(0);
+  const [cropStageSize, setCropStageSize] = useState<Size | null>(null);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [localImportResult, setLocalImportResult] = useState<{
     imported: number;
@@ -498,6 +499,7 @@ function App() {
     setPicked([]);
     setCrops({});
     setCropIndex(0);
+    setCropStageSize(null);
   }
 
   function handleUpdateCrop(id: string, patch: Partial<CropAdjustment>) {
@@ -526,11 +528,11 @@ function App() {
     setImportProgress({ done: 0, total: picked.length });
     let imported = 0;
     let lastError = "";
+    const stageFrame = cropStageSize || cropStageFrame(panelSize);
 
     for (const item of picked) {
       try {
         const bitmap = await loadImageBitmap(item.file);
-        const stageFrame = cropStageFrame(panelSize);
         const blob = await compositeCrop(bitmap, panelSize, stageFrame, crops[item.id] || defaultCropAdjustment());
         await api.uploadLocalPhoto(pickTargetAlbumId, blob, `${item.id}.jpg`);
         imported += 1;
@@ -749,6 +751,7 @@ function App() {
             onApplyToAll={handleApplyToAll}
             onBack={goBack}
             onFinish={() => void handleConfirmImport()}
+            onStageFrameChange={setCropStageSize}
           />
         ) : null}
 

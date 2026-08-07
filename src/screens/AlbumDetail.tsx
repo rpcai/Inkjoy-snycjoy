@@ -1,5 +1,7 @@
-import { ArrowLeft, Image, Plus } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Eye, Image, Plus } from "lucide-react";
 import type { Album, AlbumPhoto } from "../types";
+import { PhotoViewer } from "../components/PhotoViewer";
 
 export function AlbumDetail(props: {
   album: Album;
@@ -12,6 +14,7 @@ export function AlbumDetail(props: {
   onDeletePhotos: () => void;
 }) {
   const selecting = props.selectedPhotoIds.length > 0;
+  const [viewingPhoto, setViewingPhoto] = useState<AlbumPhoto | null>(null);
 
   return (
     <div className="mobile-screen">
@@ -39,12 +42,33 @@ export function AlbumDetail(props: {
               onClick={() => props.onTogglePhoto(photo.imgId)}
             >
               {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="" /> : <Image size={20} />}
+              <span
+                className="photo-view-badge"
+                role="button"
+                tabIndex={0}
+                aria-label="View photo"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setViewingPhoto(photo);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setViewingPhoto(photo);
+                  }
+                }}
+              >
+                <Eye size={13} />
+              </span>
               {props.selectedPhotoIds.includes(photo.imgId) ? <span className="photo-check-badge">✓</span> : null}
             </button>
           ))}
         </div>
         {!props.photos.length ? <div className="empty-state">This album is empty.</div> : null}
       </div>
+
+      {viewingPhoto ? <PhotoViewer photo={viewingPhoto} onClose={() => setViewingPhoto(null)} /> : null}
 
       {selecting ? (
         <div className="selection-bar">

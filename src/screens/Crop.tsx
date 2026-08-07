@@ -1,7 +1,7 @@
 import type React from "react";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, RotateCw, Search } from "lucide-react";
-import { clampPan, clampZoom, computeCropLayout, cropStageFrame, panLimits, type Size } from "../lib/crop";
+import { clampPan, clampZoom, computeCropLayout, containSize, cropStageFrame, panLimits, type Size } from "../lib/crop";
 import type { CropAdjustment, LocalPickedPhoto, Matte } from "../types";
 
 const MATTE_SWATCHES: { value: Matte; label: string }[] = [
@@ -30,15 +30,39 @@ export function Crop(props: {
   onApplyToAll: () => void;
   onBack: () => void;
   onFinish: () => void;
+  onStageFrameChange: (frame: Size) => void;
 }) {
   const [dragging, setDragging] = useState(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gestureDist = useRef(0);
   const gestureZoom = useRef(100);
+  const stageWrapRef = useRef<HTMLDivElement>(null);
+  const [stageFrame, setStageFrame] = useState<Size>(() => cropStageFrame(props.panelSize));
+
+  const panelAspect = props.panelSize.w / props.panelSize.h;
+
+  useLayoutEffect(() => {
+    function measure() {
+      const el = stageWrapRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 20) return;
+      const next = containSize({ w: rect.width, h: rect.height }, panelAspect);
+      setStageFrame(next);
+      props.onStageFrameChange(next);
+    }
+
+    measure();
+    const element = stageWrapRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelAspect]);
 
   const photo = props.photos[props.index];
   const crop = photo ? props.crops[photo.id] : undefined;
-  const stageFrame = cropStageFrame(props.panelSize);
 
   if (!photo || !crop) {
     return null;
@@ -130,7 +154,7 @@ export function Crop(props: {
         </button>
       </div>
 
-      <div className="crop-stage-wrap">
+      <div className="crop-stage-wrap" ref={stageWrapRef}>
         <div
           className="crop-stage"
           style={{ width: stageFrame.w, height: stageFrame.h }}
