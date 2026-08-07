@@ -6,10 +6,12 @@ export function InkjoyLogin({
   onSubmit,
   disabled,
   busy,
+  notice,
 }: {
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   disabled: boolean;
   busy: string;
+  notice?: string;
 }) {
   return (
     <form className="login-card" onSubmit={onSubmit}>
@@ -17,6 +19,8 @@ export function InkjoyLogin({
         <SyncjoyLogo />
         <p>Sign in to manage your e-ink frames</p>
       </div>
+
+      {notice ? <p className="login-notice">{notice}</p> : null}
 
       <label>
         Email

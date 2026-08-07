@@ -15,6 +15,9 @@ export type InkjoyRequestOptions = {
   token?: string;
 };
 
+/** Thrown when Inkjoy rejects the stored token (expired/invalid) or no token is stored at all. */
+export class InkjoySessionError extends Error {}
+
 export async function inkjoyRequest<T>(
   path: string,
   session: AppSession,
@@ -46,7 +49,11 @@ export async function inkjoyRequest<T>(
     : ({ msg: await response.text() } as InkjoyResult<T>);
 
   if (!response.ok || (typeof payload.code === "number" && payload.code !== 0)) {
-    throw new Error(payload.msg || `Inkjoy request failed with ${response.status}`);
+    const message = payload.msg || `Inkjoy request failed with ${response.status}`;
+    if (response.status === 401) {
+      throw new InkjoySessionError(message);
+    }
+    throw new Error(message);
   }
 
   return payload;
@@ -54,6 +61,6 @@ export async function inkjoyRequest<T>(
 
 export function requireInkjoy(session: AppSession) {
   if (!session.inkjoy?.token) {
-    throw new Error("Inkjoy is not connected");
+    throw new InkjoySessionError("Inkjoy is not connected");
   }
 }

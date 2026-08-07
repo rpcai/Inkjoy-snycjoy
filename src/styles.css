@@ -217,6 +217,18 @@ a {
   font-size: 0.875rem;
 }
 
+.login-notice {
+  margin: -0.5rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-align: center;
+}
+
 .syncjoy-logo {
   display: inline-flex;
   align-items: center;
@@ -1289,6 +1301,9 @@ a {
   width: min(92vw, 420px);
   margin-bottom: 0;
   box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+  /* Toasts have no interactive content of their own — never let a persistent one
+     (e.g. a repeated request error) block clicks on controls underneath, like Sign Out. */
+  pointer-events: none;
 }
 
 .busy-float.toast-float {

@@ -9,7 +9,7 @@ import {
   googlePickerRequest,
   isGoogleConfigured,
 } from "./google";
-import { inkjoyRequest, requireInkjoy } from "./inkjoy";
+import { inkjoyRequest, InkjoySessionError, requireInkjoy } from "./inkjoy";
 import { readSession, writeSession, type Env, type InkjoyRegion } from "./session";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -24,7 +24,15 @@ app.use(
   }),
 );
 
-app.onError((error, c) => {
+app.onError(async (error, c) => {
+  if (error instanceof InkjoySessionError) {
+    const session = await readSession(c);
+    if (session.inkjoy) {
+      delete session.inkjoy;
+      await writeSession(c, session);
+    }
+    return c.json({ error: error.message, code: "INKJOY_SESSION_EXPIRED" }, 401);
+  }
   console.error(error);
   return c.json({ error: error.message || "Unexpected server error" }, 500);
 });

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Images, Loader2, LogOut } from "lucide-react";
-import { api } from "./lib/api";
+import { api, SessionExpiredError } from "./lib/api";
 import "./styles.css";
 import type {
   Album,
@@ -76,6 +76,7 @@ function App() {
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [loginNotice, setLoginNotice] = useState("");
 
   const [addPhotosSheetOpen, setAddPhotosSheetOpen] = useState(false);
   const [pickOrigin, setPickOrigin] = useState<PickOrigin>("home");
@@ -220,6 +221,11 @@ function App() {
     try {
       return await action();
     } catch (caught) {
+      if (caught instanceof SessionExpiredError) {
+        setSession(defaultSession);
+        setLoginNotice("Your Inkjoy session expired. Please sign in again.");
+        return undefined;
+      }
       setError(caught instanceof Error ? caught.message : "Request failed");
       return undefined;
     } finally {
@@ -296,6 +302,7 @@ function App() {
     if (!result) return;
     formElement.reset();
     setSession(await api.session());
+    setLoginNotice("");
     setNotice("Signed in.");
     await loadInkjoyData();
   }
@@ -625,7 +632,7 @@ function App() {
   if (!session.inkjoy.connected) {
     return (
       <main className="login-page">
-        <InkjoyLogin onSubmit={handleLogin} disabled={Boolean(busy)} busy={busy} />
+        <InkjoyLogin onSubmit={handleLogin} disabled={Boolean(busy)} busy={busy} notice={loginNotice} />
       </main>
     );
   }

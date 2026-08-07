@@ -14,6 +14,9 @@ type RequestOptions = {
   body?: unknown;
 };
 
+/** Thrown when the server reports the stored Inkjoy session has expired or was rejected. */
+export class SessionExpiredError extends Error {}
+
 async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const isFormData = options.body instanceof FormData;
   const response = await fetch(path, {
@@ -26,6 +29,9 @@ async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 401 && payload.code === "INKJOY_SESSION_EXPIRED") {
+      throw new SessionExpiredError(payload.error || "Inkjoy session expired");
+    }
     throw new Error(payload.error || `Request failed with ${response.status}`);
   }
 
