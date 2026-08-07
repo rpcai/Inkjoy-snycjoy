@@ -4,6 +4,77 @@ All significant changes to this system are documented here.
 
 ---
 
+## [2026-08-07] Session: 16:00
+
+### Summary
+
+Fixed three issues reported after the mobile PWA rebuild went live: cropped/framed photos that
+silently failed to import, a slideshow schedule editor that showed every field regardless of
+trigger type, and a request to support Android's "Share to Syncjoy" flow. Diagnosed the crop
+import bug against the real Inkjoy backend (real account, real device) with a battery of Playwright
+repros rather than guesswork — found and fixed a genuine implementation bug, not a config issue.
+
+### Changes
+
+**Crop import fix**
+- Root cause: the Crop screen's final "Done" button was wired to `goBack()`, only returning to the
+  Review screen, instead of confirming the import — a deviation from the design handoff's own
+  `Crop → Importing → Done` flow diagram. Rewired `onFinish` to call `handleConfirmImport` directly.
+- Closed a related race: `pickTargetAlbumId` could still be empty when Crop's "Done" was tapped if
+  albums hadn't finished loading when the Add Photos sheet opened, causing a silent no-op. Added an
+  effect that keeps it synced to a valid album once the list loads.
+- `Done` screen now distinguishes a real failure (shows the actual error, "Try again") from success,
+  instead of a misleading "0 photos added" success-styled screen.
+- Verified end-to-end against the real Inkjoy account and both local dev and the deployed Worker:
+  single/multi photo, all crop controls (pan, pinch-zoom equivalent, rotate, matte swatches, fit
+  mode), before concluding it was fixed — cleaned up all test albums/photos created during
+  verification afterward.
+
+**Slideshow edit form**
+- Rebuilt `SlideshowSettingsForm` as a controlled component that branches on trigger type instead of
+  showing every field always: `Interval` gets an All day / Specific hours radio (disables Start/End
+  when all day); `Fixed Schedule` gets explanatory copy and a proper add/remove list of switching
+  times (previously a raw comma-separated text input).
+- Confirmed via `docs/research.md` that `updateDays`, `beginTime`/`endTime`/`intervalMinutes`, and
+  `updateTimeList` were already wired to the real `devicePlayStrategy` API — the bug was purely that
+  the UI didn't make clear which fields applied to which trigger type.
+- Bonus fixes found while rebuilding: the sheet now pre-fills from the frame's actual active
+  schedule when editing (previously always reset to hardcoded defaults), and reuses the active
+  carousel's `strategyId` so edits update in place instead of leaving orphaned inactive strategies
+  behind on Inkjoy's side.
+
+**Android share target**
+- Added `share_target` to `public/manifest.webmanifest` (multipart POST, multiple `image/jpeg`
+  /`image/png` files under a `photos` field).
+- New minimal service worker (`public/share-sw.js`) whose only job is intercepting that one POST —
+  it stores shared files in IndexedDB and redirects into the app; no other request is touched, so
+  the project's "no caching of API responses" stance is unchanged.
+- `src/lib/shareTarget.ts` (new) reads the stored files back out on next launch;
+  `src/lib/localPhotos.ts` gained a shared `toLocalPickedPhotos` helper so both the native picker
+  and the share-target path produce the same `LocalPickedPhoto` shape.
+- Shared photos land the user on the existing Review screen to pick a target album, then flow
+  through the same Crop/Importing/Done pipeline unchanged.
+- Added a server-side `POST /share-target` fallback (redirects into the app) for the rare case the
+  service worker hasn't activated yet; it can't recover the files in that case (no durable photo
+  storage), but avoids a 404.
+
+### Git Commits
+- `075e0cb` - Fix crop import flow, rebuild slideshow schedule form, add Android share target
+
+### Next Steps
+- [ ] Test the Android share target on a real device (the OS-level share sheet entry, multi-file
+      share from Google Photos/Gallery) — verified locally via simulated multipart POST + service
+      worker interception, not the actual OS share intent.
+- [ ] Test on a real Android phone generally: touch gestures, native picker, install-to-home-screen,
+      hardware back gesture (still outstanding from the previous session).
+- [ ] Set `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` on the deployed Worker if Google Photos import is
+      wanted there.
+- [ ] Decide whether album rename/delete needs a home in the new design (dropped in the rebuild).
+- [ ] This session's fixes are committed locally (`075e0cb`) but not yet deployed — run
+      `npm run deploy` to push them to the live Worker for real-device testing.
+
+---
+
 ## [2026-08-07] Session: 10:46
 
 ### Summary
