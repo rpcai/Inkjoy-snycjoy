@@ -4,6 +4,67 @@ All significant changes to this system are documented here.
 
 ---
 
+## [2026-08-07] Session: 16:38
+
+### Summary
+
+Fixed a reported dead-end: once an Inkjoy session expired, every API call failed with a
+"401" error toast and the app just sat there — no way back to the login screen, since the
+toast overlapped and blocked clicks on the navbar's Sign Out button. Root-caused it as two
+compounding issues (an unrecoverable app state, and an overlapping non-dismissible toast) and
+fixed both, verifying against the real Inkjoy backend by deliberately corrupting an active
+session cookie mid-session and confirming clean recovery.
+
+### Changes
+
+**Expired-session auto-recovery**
+- `server/inkjoy.ts`: new `InkjoySessionError` class, thrown by `inkjoyRequest` on any Inkjoy
+  401 response and by `requireInkjoy` when no token is stored at all.
+- `server/index.ts`: `app.onError` now catches `InkjoySessionError` specifically, clears the
+  stale `inkjoy` portion of the session cookie, and responds `401` with
+  `{ code: "INKJOY_SESSION_EXPIRED" }` instead of the generic `500` every other error gets.
+- `src/lib/api.ts`: `apiFetch` recognizes that code and throws a client-side
+  `SessionExpiredError` instead of a plain `Error`.
+- `src/main.tsx`: the shared `run()` helper catches `SessionExpiredError`, resets `session` to
+  disconnected, and sets a login-screen notice — the app now drops straight back to the login
+  form with "Your Inkjoy session expired. Please sign in again." instead of staying stuck on
+  the app shell.
+- `src/screens/Login.tsx` / `src/styles.css`: added a `notice` prop and `.login-notice` styling
+  to actually display that message (the login screen previously had no error/notice slot at
+  all).
+
+**Toast robustness (defensive)**
+- `.toast-float` now sets `pointer-events: none` — toasts have no interactive content of their
+  own, so a persistent one (from any cause, not just this bug) can no longer block clicks on
+  controls underneath it, like Sign Out.
+
+**Verification**
+- Logged into the real Inkjoy account via Playwright, then used `context.addCookies()` to
+  overwrite the live session cookie with an undecryptable value (simulating an expired/invalid
+  token) mid-session, and triggered a refresh. Confirmed every resulting Inkjoy call correctly
+  401'd with `INKJOY_SESSION_EXPIRED`, the app cleanly dropped to the login screen with the
+  expiry notice visible, and no stray toast was left blocking anything.
+
+### Git Commits
+- `b934273` - Auto-recover from expired Inkjoy sessions instead of getting stuck
+
+### Deployment
+- Deployed to the live Worker (`https://inkjoy-syncjoy.ruben-j-peters.workers.dev`), version
+  `6a41670e-3cf5-47d3-b3c0-d41cf4cb90cf`. Health check, home page, and manifest all verified 200
+  post-deploy.
+
+### Next Steps
+- [ ] Test the Android share target (added last session) via the real OS share sheet on a
+      physical device — still only verified via simulated multipart POST + service worker
+      interception, not the actual OS share intent.
+- [ ] Test general mobile UX on a real Android phone: touch gestures, native picker,
+      install-to-home-screen, hardware back gesture.
+- [ ] Set `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` on the deployed Worker if Google Photos
+      import is wanted there.
+- [ ] Decide whether album rename/delete needs a home in the new design (dropped in the rebuild).
+
+---
+
 ## [2026-08-07] Session: 16:00
 
 ### Summary
