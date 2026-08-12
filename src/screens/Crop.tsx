@@ -47,7 +47,7 @@ export function Crop(props: {
       if (!el) return;
       const rect = el.getBoundingClientRect();
       if (rect.width < 20 || rect.height < 20) return;
-      const next = containSize({ w: rect.width, h: rect.height }, panelAspect);
+      const next = containSize({ w: rect.width * 0.9, h: rect.height * 0.9 }, panelAspect);
       setStageFrame(next);
       props.onStageFrameChange(next);
     }
