@@ -2247,15 +2247,6 @@ a {
   box-shadow: 0 20px 60px rgb(0 0 0 / 50%);
 }
 
-.photo-viewer-caption {
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 10%);
-  color: rgb(255 255 255 / 85%);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
 .selection-bar {
   position: sticky;
   bottom: 0;
