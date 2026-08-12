@@ -61,6 +61,11 @@ export const api = {
       method: "POST",
       body: { imgIdList },
     }),
+  publishAlbumPhoto: (deviceId: string, albumId: string, imgId: string, timezone?: string) =>
+    apiFetch<{ ok: true }>(`/api/inkjoy/devices/${deviceId}/publish-album`, {
+      method: "POST",
+      body: { albumId, imgId, timezone },
+    }),
   carousels: (deviceId?: string) =>
     apiFetch<Carousel[]>(`/api/inkjoy/carousels${deviceId ? `?deviceId=${deviceId}` : ""}`),
   setCarouselStatus: (strategyId: string, status: "ACTIVE" | "INACTIVE") =>

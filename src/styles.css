@@ -2247,6 +2247,37 @@ a {
   box-shadow: 0 20px 60px rgb(0 0 0 / 50%);
 }
 
+.photo-viewer-send {
+  flex-shrink: 0;
+}
+
+.photo-viewer-frame-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.photo-viewer-frame-picker-label {
+  color: rgb(255 255 255 / 70%);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.photo-viewer-frame-row {
+  padding: 0.65rem 1.5rem;
+  border: 1.5px solid rgb(255 255 255 / 25%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.photo-viewer-frame-row:hover {
+  background: rgb(255 255 255 / 18%);
+}
+
 .selection-bar {
   position: sticky;
   bottom: 0;

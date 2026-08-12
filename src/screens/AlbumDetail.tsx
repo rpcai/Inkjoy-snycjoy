@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { ArrowLeft, Eye, Image, MoreVertical, Plus } from "lucide-react";
-import type { Album, AlbumPhoto } from "../types";
+import type { Album, AlbumPhoto, Device } from "../types";
 import { PhotoViewer } from "../components/PhotoViewer";
 import { AlbumOptionsSheet } from "./AlbumOptionsSheet";
 
 export function AlbumDetail(props: {
   album: Album;
   photos: AlbumPhoto[];
+  devices: Device[];
   selectedPhotoIds: string[];
   onBack: () => void;
   onAdd: () => void;
@@ -15,6 +16,7 @@ export function AlbumDetail(props: {
   onDeletePhotos: () => void;
   onRenameAlbum: (albumName: string) => void;
   onDeleteAlbum: () => void;
+  onSendToFrame: (imgId: string, deviceId: string) => void;
 }) {
   const selecting = props.selectedPhotoIds.length > 0;
   const [viewingPhoto, setViewingPhoto] = useState<AlbumPhoto | null>(null);
@@ -82,7 +84,17 @@ export function AlbumDetail(props: {
         {!props.photos.length ? <div className="empty-state">This album is empty.</div> : null}
       </div>
 
-      {viewingPhoto ? <PhotoViewer photo={viewingPhoto} onClose={() => setViewingPhoto(null)} /> : null}
+      {viewingPhoto ? (
+        <PhotoViewer
+          photo={viewingPhoto}
+          devices={props.devices}
+          onSendToFrame={(deviceId) => {
+            props.onSendToFrame(viewingPhoto.imgId, deviceId);
+            setViewingPhoto(null);
+          }}
+          onClose={() => setViewingPhoto(null)}
+        />
+      ) : null}
 
       {optionsOpen ? (
         <AlbumOptionsSheet

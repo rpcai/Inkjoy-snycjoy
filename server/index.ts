@@ -227,6 +227,25 @@ app.post("/api/inkjoy/albums/:albumId/photos/delete", async (c) => {
   return c.json(result.data ?? { ok: true });
 });
 
+app.post("/api/inkjoy/devices/:deviceId/publish-album", async (c) => {
+  const session = await readSession(c);
+  requireInkjoy(session);
+  const body = (await c.req.json()) as { albumId?: string; imgId?: string; timezone?: string };
+  if (!body.albumId || !body.imgId) {
+    return c.json({ error: "albumId and imgId are required" }, 400);
+  }
+  const result = await inkjoyRequest("/api/v1/devices/publish/album", session, {
+    method: "POST",
+    body: {
+      deviceId: c.req.param("deviceId"),
+      albumId: body.albumId,
+      imgId: body.imgId,
+      timezone: body.timezone,
+    },
+  });
+  return c.json(result.data ?? { ok: true });
+});
+
 app.get("/api/inkjoy/carousels", async (c) => {
   const session = await readSession(c);
   requireInkjoy(session);

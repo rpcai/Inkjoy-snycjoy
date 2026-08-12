@@ -360,6 +360,18 @@ function App() {
     }
   }
 
+  async function handleSendToFrame(imgId: string, deviceId: string) {
+    if (!albumDetailAlbumId) return;
+    const device = devices.find((candidate) => candidate.deviceId === deviceId);
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const sent = await run("Sending to frame", () =>
+      api.publishAlbumPhoto(deviceId, albumDetailAlbumId, imgId, timezone),
+    );
+    if (sent) {
+      setNotice(`Sent to ${device?.deviceName || "frame"}.`);
+    }
+  }
+
   async function handleDeleteAlbum() {
     if (!albumDetailAlbumId) return;
     const deletedAlbumId = albumDetailAlbumId;
@@ -719,6 +731,7 @@ function App() {
           <AlbumDetail
             album={albumDetailAlbum}
             photos={photos}
+            devices={devices}
             selectedPhotoIds={selectedPhotoIds}
             onBack={goBack}
             onAdd={() => openAddPhotos("album")}
@@ -731,6 +744,7 @@ function App() {
             onDeletePhotos={() => void handleDeletePhotos()}
             onRenameAlbum={(albumName) => void handleRenameAlbum(albumName)}
             onDeleteAlbum={() => void handleDeleteAlbum()}
+            onSendToFrame={(imgId, deviceId) => void handleSendToFrame(imgId, deviceId)}
           />
         ) : null}
 
