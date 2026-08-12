@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ArrowLeft, Eye, Image, Plus } from "lucide-react";
+import { ArrowLeft, Eye, Image, MoreVertical, Plus } from "lucide-react";
 import type { Album, AlbumPhoto } from "../types";
 import { PhotoViewer } from "../components/PhotoViewer";
+import { AlbumOptionsSheet } from "./AlbumOptionsSheet";
 
 export function AlbumDetail(props: {
   album: Album;
@@ -12,9 +13,12 @@ export function AlbumDetail(props: {
   onTogglePhoto: (imgId: string) => void;
   onCancelSelection: () => void;
   onDeletePhotos: () => void;
+  onRenameAlbum: (albumName: string) => void;
+  onDeleteAlbum: () => void;
 }) {
   const selecting = props.selectedPhotoIds.length > 0;
   const [viewingPhoto, setViewingPhoto] = useState<AlbumPhoto | null>(null);
+  const [optionsOpen, setOptionsOpen] = useState(false);
 
   return (
     <div className="mobile-screen">
@@ -26,10 +30,20 @@ export function AlbumDetail(props: {
           <strong>{props.album.albumName || "Album"}</strong>
           <span>{props.photos.length} photos · synced</span>
         </div>
-        <button type="button" className="btn btn-primary btn-sm" onClick={props.onAdd}>
-          <Plus size={14} />
-          Add
-        </button>
+        <div className="mobile-app-bar-actions">
+          <button type="button" className="btn btn-primary btn-sm" onClick={props.onAdd}>
+            <Plus size={14} />
+            Add
+          </button>
+          <button
+            type="button"
+            className="icon-btn-ghost"
+            onClick={() => setOptionsOpen(true)}
+            aria-label="Album options"
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
       </div>
 
       <div className="mobile-screen-body">
@@ -69,6 +83,21 @@ export function AlbumDetail(props: {
       </div>
 
       {viewingPhoto ? <PhotoViewer photo={viewingPhoto} onClose={() => setViewingPhoto(null)} /> : null}
+
+      {optionsOpen ? (
+        <AlbumOptionsSheet
+          album={props.album}
+          onRename={(albumName) => {
+            setOptionsOpen(false);
+            props.onRenameAlbum(albumName);
+          }}
+          onDelete={() => {
+            setOptionsOpen(false);
+            props.onDeleteAlbum();
+          }}
+          onClose={() => setOptionsOpen(false)}
+        />
+      ) : null}
 
       {selecting ? (
         <div className="selection-bar">

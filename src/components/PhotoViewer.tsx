@@ -4,7 +4,7 @@ import type { AlbumPhoto } from "../types";
 
 export function PhotoViewer(props: { photo: AlbumPhoto; onClose: () => void }) {
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-  const src = props.photo.originUrl || props.photo.thumbnailUrl;
+  const src = props.photo.thumbnailUrl || props.photo.originUrl;
   const orientation = dimensions
     ? dimensions.width === dimensions.height
       ? "Square"

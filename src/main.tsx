@@ -351,6 +351,30 @@ function App() {
     }
   }
 
+  async function handleRenameAlbum(albumName: string) {
+    if (!albumDetailAlbumId) return;
+    const renamed = await run("Renaming album", () => api.renameAlbum(albumDetailAlbumId, albumName));
+    if (renamed) {
+      setNotice("Album renamed.");
+      await loadInkjoyData();
+    }
+  }
+
+  async function handleDeleteAlbum() {
+    if (!albumDetailAlbumId) return;
+    const deletedAlbumId = albumDetailAlbumId;
+    const deleted = await run("Deleting album", () => api.deleteAlbum(deletedAlbumId));
+    if (!deleted) return;
+    setNotice("Album deleted.");
+    setAlbumDetailAlbumId("");
+    goBack();
+    const nextAlbums = await run("Refreshing albums", () => api.albums());
+    if (nextAlbums) {
+      setAlbums(nextAlbums);
+      setSelectedAlbumId((current) => (current === deletedAlbumId ? nextAlbums[0]?.albumId || "" : current));
+    }
+  }
+
   function openAlbumDetail(albumId: string) {
     setSelectedAlbumId(albumId);
     setAlbumDetailAlbumId(albumId);
@@ -705,6 +729,8 @@ function App() {
             }
             onCancelSelection={() => setSelectedPhotoIds([])}
             onDeletePhotos={() => void handleDeletePhotos()}
+            onRenameAlbum={(albumName) => void handleRenameAlbum(albumName)}
+            onDeleteAlbum={() => void handleDeleteAlbum()}
           />
         ) : null}
 

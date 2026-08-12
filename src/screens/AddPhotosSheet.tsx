@@ -29,7 +29,6 @@ export function AddPhotosSheet(props: {
                 <strong>Phone collections</strong>
                 <span>Camera, Screenshots, Google Photos</span>
               </span>
-              <span className="pill">Fastest</span>
             </button>
           ) : (
             <button type="button" className="sheet-row highlighted" onClick={props.onPickLocal}>
@@ -42,18 +41,6 @@ export function AddPhotosSheet(props: {
               </span>
             </button>
           )}
-
-          {props.isMobile ? (
-            <button type="button" className="sheet-row" onClick={props.onPickLocal}>
-              <span className="sheet-row-icon">
-                <UploadCloud size={18} />
-              </span>
-              <span className="sheet-row-copy">
-                <strong>Files</strong>
-                <span>Downloads, Drive, SD card</span>
-              </span>
-            </button>
-          ) : null}
 
           <button
             type="button"
