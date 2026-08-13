@@ -4,6 +4,114 @@ All significant changes to this system are documented here.
 
 ---
 
+## [2026-08-13] Session: 13:29
+
+### Summary
+
+Added a "Send to frame" action to the album multi-select footer (previously only available
+per-photo), then chased down two real bugs the user found while trying it: album photo
+thumbnails displaying sideways for some images, and "send to frame" failing outright for
+others with a bare "system error". Both root-caused against the real Inkjoy account/API rather
+than guessed at — the orientation bug traced to Inkjoy stripping EXIF data when generating
+`-thumbnail` renditions, and the send failures traced to Inkjoy's publish endpoints requiring
+an exact pixel-dimension match with no server-side resizing, which silently broke sending for
+most photos imported via the native Android app. An in-between attempt to fix the orientation
+bug by always loading full-resolution images was explicitly rejected by the user as unnecessary
+bandwidth cost and reverted in favor of a lighter CSS-rotation fix. Verified all three fixes
+live against the real Inkjoy account, album, and physical frame; deployed twice this session
+(the first deploy attempt shipped stale assets — see gotcha below).
+
+### Changes
+
+**Multi-select "Send to frame"**
+- `src/screens/AlbumDetail.tsx`: the selection footer now shows a "Send to frame" button
+  (styled `btn-primary`, matching the existing per-photo button) whenever exactly one photo is
+  selected. Sends immediately if the account has one bound frame; otherwise opens a frame-picker
+  sheet reusing the existing `sheet`/`sheet-row` styling.
+
+**Thumbnail orientation fix (no full-res loads)**
+- Root cause: Inkjoy's `-thumbnail` image renditions strip the EXIF `Orientation` tag during
+  generation, so photos taken in portrait (raw sensor pixels are landscape; EXIF says rotate)
+  render sideways anywhere the small thumbnail is shown. The full-size original keeps the EXIF
+  tag intact. Confirmed by downloading and inspecting real thumbnail/original pairs from the
+  account — same bug reproduces for the frame's "currently playing" thumbnail and for album
+  photo thumbnails.
+- `server/exifOrientation.ts` (new): minimal JPEG EXIF parser that reads just the `Orientation`
+  tag from a byte buffer, plus a mapping to CSS rotation degrees.
+- `server/index.ts`: new `GET /api/inkjoy/image-orientation` route reads only the first 128KB
+  of a photo's full-size original (a cheap partial fetch, not a full download) and returns the
+  rotation needed to correct it.
+- `src/lib/useImageRotation.ts` (new): hook that calls the new endpoint and returns a rotation
+  in degrees for a given photo's original URL.
+- `src/screens/AlbumDetail.tsx` / `src/components/PhotoViewer.tsx`: apply the hook's rotation as
+  a CSS `transform: rotate()` on the existing (small, fast-loading) thumbnail — in the album
+  grid and the larger photo-viewer preview. For the viewer's `contain`-fit stage, 90°/270°
+  rotations also swap the max-width/max-height constraints so a landscape source doesn't
+  overflow the now-portrait-shaped box.
+- Reverted an earlier same-session attempt to fix the frame's "currently playing" preview
+  (`FrameDetail.tsx`, `DeviceGrid.tsx`) by always loading the full-resolution original — the
+  user flagged this as unnecessary bandwidth cost and not what was asked for; those screens are
+  back to showing the plain (occasionally imperfect) thumbnail.
+
+**Send-to-frame "system error" fix**
+- Root cause, confirmed by testing ~10 photos of varying size/orientation directly against the
+  real API: Inkjoy's publish endpoints (`/publish/album` by reference, and the raw
+  `/{deviceId}/publish` upload) both require the source image to already exactly match the
+  device's resolution and do no server-side resizing — every non-matching photo failed
+  identically regardless of portrait/landscape or EXIF correctness. This silently broke sending
+  for most photos imported via the native Android app, which (unlike this app's own import flow)
+  aren't pre-cropped to the device's resolution before being stored.
+- `server/index.ts`: new `GET /api/inkjoy/image-proxy` route proxies an Inkjoy original through
+  our own origin (the S3 bucket serving them has no CORS headers, so the browser can't draw one
+  onto a `<canvas>` directly); new `POST /api/inkjoy/devices/:deviceId/publish` forwards a
+  multipart file to Inkjoy's raw upload endpoint.
+- `src/main.tsx`: `handleSendToFrame` now tries the fast reference-based publish first and, only
+  if that fails, fetches the photo's original through the proxy, composites it to the target
+  device's exact resolution using the existing crop pipeline (`compositeCrop`/
+  `loadImageBitmap`, the same code the import flow already uses), and sends the fresh bytes via
+  the new raw-publish route.
+
+**Deploy gotcha (process note, no code change)**
+- `npm run deploy` is just `wrangler deploy` — it does not run `npm run build` first. The first
+  deploy this session silently re-shipped a stale `dist/` from an earlier local build and fixed
+  nothing; caught it from wrangler's "no updated asset files to upload" output. Every deploy
+  from now on needs an explicit `npm run build` immediately before `npm run deploy`.
+
+**Verification**
+- All three fixes tested against the real Inkjoy account, the "mother's day" album, and the
+  bound physical frame — via Playwright driving both local dev and the deployed Worker, and via
+  direct API calls to confirm root causes before writing any fix.
+- Send-to-frame fallback confirmed end-to-end: a photo that previously failed with "system
+  error" now composites correctly and successfully reaches the frame, with network logs showing
+  the expected fail-then-fallback sequence (`publish-album` 500 → `image-proxy` 200 → `publish`
+  200).
+
+### Git Commits
+- `155ba9f` - Add multi-select send-to-frame, fix sideways frame thumbnails
+- `3c84ccb` - Fix thumbnail orientation without loading full-res, fix send-to-frame errors
+
+### Deployment
+- Deployed twice to the live Worker (`https://inkjoy-syncjoy.ruben-j-peters.workers.dev`):
+  Version `531c10b8-e7cb-4721-922b-34fc66ae7261` (after the stale-build gotcha above was caught
+  and fixed) for `155ba9f`, then Version `bbf05621-6df1-48b3-845f-cddc9317223d` for `3c84ccb`.
+  Both verified live post-deploy.
+
+### Next Steps
+- [ ] EXIF orientations 2/4/5/7 (mirrored, not just rotated) are rare for camera photos and
+      currently only have their rotation component applied, ignoring the mirror — revisit if a
+      genuinely mirrored image turns up.
+- [ ] The send-to-frame fallback treats *any* `publish-album` failure as "needs recompositing"
+      — a reasonable bet given the evidence, but it isn't a specific error code from Inkjoy, so a
+      genuinely different failure would also (harmlessly, but pointlessly) trigger the
+      recomposite path.
+- [ ] Test the Android share target and general mobile UX (touch gestures, native picker,
+      install-to-home-screen, hardware back gesture) on a real device — still outstanding from
+      prior sessions, never done on physical hardware.
+- [ ] Set `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` on the deployed Worker if Google Photos
+      import is wanted there.
+
+---
+
 ## [2026-08-07] Session: 16:38
 
 ### Summary
