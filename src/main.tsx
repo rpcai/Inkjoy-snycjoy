@@ -364,9 +364,27 @@ function App() {
     if (!albumDetailAlbumId) return;
     const device = devices.find((candidate) => candidate.deviceId === deviceId);
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    const sent = await run("Sending to frame", () =>
-      api.publishAlbumPhoto(deviceId, albumDetailAlbumId, imgId, timezone),
-    );
+
+    const sent = await run("Sending to frame", async () => {
+      try {
+        return await api.publishAlbumPhoto(deviceId, albumDetailAlbumId, imgId, timezone);
+      } catch {
+        // Inkjoy's publish/album only succeeds when the stored photo already exactly matches
+        // the device's resolution — it does no server-side resizing, so most native-app-imported
+        // photos fail here. Composite a correctly-sized copy and send the fresh bytes instead.
+        const photo = photos.find((candidate) => candidate.imgId === imgId);
+        const width = device?.resolution?.width;
+        const height = device?.resolution?.height;
+        if (!width || !height || !photo?.originUrl) {
+          throw new Error("Couldn't resize this photo for your frame.");
+        }
+        const panelSize: Size = { w: width, h: height };
+        const bitmap = await loadImageBitmap(api.imageProxyUrl(photo.originUrl));
+        const blob = await compositeCrop(bitmap, panelSize, cropStageFrame(panelSize), defaultCropAdjustment());
+        return api.publishDeviceImage(deviceId, blob, `${imgId}.jpg`, timezone);
+      }
+    });
+
     if (sent) {
       setNotice(`Sent to ${device?.deviceName || "frame"}.`);
     }

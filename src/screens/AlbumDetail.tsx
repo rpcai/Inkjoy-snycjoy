@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, Eye, Image, Monitor, MoreVertical, Plus, Send, X } from "lucide-react";
 import type { Album, AlbumPhoto, Device } from "../types";
 import { PhotoViewer } from "../components/PhotoViewer";
+import { useImageRotation } from "../lib/useImageRotation";
 import { AlbumOptionsSheet } from "./AlbumOptionsSheet";
 
 export function AlbumDetail(props: {
@@ -63,34 +64,13 @@ export function AlbumDetail(props: {
       <div className="mobile-screen-body">
         <div className="photo-grid photo-grid-3col">
           {props.photos.map((photo) => (
-            <button
-              type="button"
+            <PhotoCard
               key={photo.imgId}
-              className={`photo-card ${props.selectedPhotoIds.includes(photo.imgId) ? "selected" : ""}`}
-              onClick={() => props.onTogglePhoto(photo.imgId)}
-            >
-              {photo.thumbnailUrl ? <img src={photo.thumbnailUrl} alt="" /> : <Image size={20} />}
-              <span
-                className="photo-view-badge"
-                role="button"
-                tabIndex={0}
-                aria-label="View photo"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setViewingPhoto(photo);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setViewingPhoto(photo);
-                  }
-                }}
-              >
-                <Eye size={13} />
-              </span>
-              {props.selectedPhotoIds.includes(photo.imgId) ? <span className="photo-check-badge">✓</span> : null}
-            </button>
+              photo={photo}
+              selected={props.selectedPhotoIds.includes(photo.imgId)}
+              onToggle={() => props.onTogglePhoto(photo.imgId)}
+              onView={() => setViewingPhoto(photo)}
+            />
           ))}
         </div>
         {!props.photos.length ? <div className="empty-state">This album is empty.</div> : null}
@@ -131,7 +111,7 @@ export function AlbumDetail(props: {
               Cancel
             </button>
             {props.selectedPhotoIds.length === 1 && props.devices.length ? (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={handleSendSelectedToFrame}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={handleSendSelectedToFrame}>
                 <Send size={14} />
                 Send to frame
               </button>
@@ -184,5 +164,47 @@ export function AlbumDetail(props: {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function PhotoCard(props: { photo: AlbumPhoto; selected: boolean; onToggle: () => void; onView: () => void }) {
+  const rotation = useImageRotation(props.photo.originUrl);
+
+  return (
+    <button
+      type="button"
+      className={`photo-card ${props.selected ? "selected" : ""}`}
+      onClick={props.onToggle}
+    >
+      {props.photo.thumbnailUrl ? (
+        <img
+          src={props.photo.thumbnailUrl}
+          alt=""
+          style={rotation ? { transform: `rotate(${rotation}deg)` } : undefined}
+        />
+      ) : (
+        <Image size={20} />
+      )}
+      <span
+        className="photo-view-badge"
+        role="button"
+        tabIndex={0}
+        aria-label="View photo"
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onView();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            event.stopPropagation();
+            props.onView();
+          }
+        }}
+      >
+        <Eye size={13} />
+      </span>
+      {props.selected ? <span className="photo-check-badge">✓</span> : null}
+    </button>
   );
 }

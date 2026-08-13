@@ -66,6 +66,18 @@ export const api = {
       method: "POST",
       body: { albumId, imgId, timezone },
     }),
+  // Fallback for stored album photos that don't already exactly match the device's resolution:
+  // publishAlbumPhoto/publish-album fails on those (Inkjoy does no server-side resizing), so the
+  // caller composites a correctly-sized copy client-side and sends the fresh bytes here instead.
+  publishDeviceImage: (deviceId: string, blob: Blob, filename: string, timezone?: string) => {
+    const body = new FormData();
+    body.set("file", blob, filename);
+    if (timezone) body.set("timezone", timezone);
+    return apiFetch<{ ok: true }>(`/api/inkjoy/devices/${deviceId}/publish`, { method: "POST", body });
+  },
+  // Proxies an Inkjoy original through our own origin so it can be drawn onto a <canvas> — the
+  // S3 bucket serving these has no CORS headers, so a direct cross-origin fetch/draw would fail.
+  imageProxyUrl: (originUrl: string) => `/api/inkjoy/image-proxy?url=${encodeURIComponent(originUrl)}`,
   carousels: (deviceId?: string) =>
     apiFetch<Carousel[]>(`/api/inkjoy/carousels${deviceId ? `?deviceId=${deviceId}` : ""}`),
   setCarouselStatus: (strategyId: string, status: "ACTIVE" | "INACTIVE") =>
@@ -107,10 +119,11 @@ export const api = {
     ),
   googleThumbnailUrl: (baseUrl: string) =>
     `/api/google/media?baseUrl=${encodeURIComponent(baseUrl)}&size=w256-h256-c`,
-  // Inkjoy's `-thumbnail` renditions strip EXIF orientation, so portrait photos render
-  // sideways; the same-key original (no suffix) keeps it and displays correctly.
-  devicePreviewUrl: (thumbnailUrl?: string) =>
-    thumbnailUrl ? thumbnailUrl.replace(/-thumbnail(\.[a-z0-9]+)(\?.*)?$/i, "$1$2") : thumbnailUrl,
+  // Inkjoy's `-thumbnail` renditions strip EXIF orientation, so some images (mostly ones
+  // imported via the native app) render sideways. This reads the orientation from the
+  // full-size original (a cheap partial fetch server-side) without downloading it to the client.
+  imageOrientation: (originUrl: string) =>
+    apiFetch<{ rotation: 0 | 90 | 180 | 270 }>(`/api/inkjoy/image-orientation?url=${encodeURIComponent(originUrl)}`),
   importGoogleToInkjoy: (albumId: string, items: PickedMediaItem[]) =>
     apiFetch<ImportResult>("/api/import/google-to-inkjoy", {
       method: "POST",

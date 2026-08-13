@@ -9,6 +9,7 @@ import {
   googlePickerRequest,
   isGoogleConfigured,
 } from "./google";
+import { orientationToRotation, readJpegOrientation } from "./exifOrientation";
 import { inkjoyRequest, InkjoySessionError, requireInkjoy } from "./inkjoy";
 import { readSession, writeSession, type Env, type InkjoyRegion } from "./session";
 
@@ -227,6 +228,63 @@ app.post("/api/inkjoy/albums/:albumId/photos/delete", async (c) => {
   return c.json(result.data ?? { ok: true });
 });
 
+// Both routes below only ever fetch images from Inkjoy's own asset bucket, never an
+// arbitrary caller-supplied host.
+function isInkjoyAssetUrl(url: string): boolean {
+  return /^https:\/\/ink-ufile\.s3\.[a-z0-9-]+\.amazonaws\.com(:443)?\//.test(url);
+}
+
+// Inkjoy's `-thumbnail` renditions strip EXIF orientation, so images imported via the native
+// app (which don't get pre-rotated the way this app's own crop/import flow does) can render
+// sideways. Rather than loading the full-size original just to fix orientation, this reads only
+// the EXIF Orientation tag from it (a small partial fetch) so the client can rotate the existing
+// small thumbnail with CSS.
+app.get("/api/inkjoy/image-orientation", async (c) => {
+  const session = await readSession(c);
+  requireInkjoy(session);
+  const url = c.req.query("url");
+  if (!url || !isInkjoyAssetUrl(url)) {
+    return c.json({ error: "Invalid or unsupported image url" }, 400);
+  }
+
+  const response = await fetch(url, { headers: { Range: "bytes=0-131071" } });
+  if (!response.ok && response.status !== 206) {
+    return c.json({ rotation: 0 });
+  }
+
+  const buffer = await response.arrayBuffer();
+  const orientation = readJpegOrientation(buffer);
+  return c.json(
+    { rotation: orientationToRotation(orientation) },
+    200,
+    { "Cache-Control": "private, max-age=86400" },
+  );
+});
+
+// Proxies an Inkjoy-stored original so it can be drawn onto a <canvas> client-side: the S3
+// bucket serving these has no CORS headers, so the browser can only read pixel data from an
+// image fetched through our own origin.
+app.get("/api/inkjoy/image-proxy", async (c) => {
+  const session = await readSession(c);
+  requireInkjoy(session);
+  const url = c.req.query("url");
+  if (!url || !isInkjoyAssetUrl(url)) {
+    return c.json({ error: "Invalid or unsupported image url" }, 400);
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    return c.json({ error: `Image fetch failed with ${response.status}` }, 502);
+  }
+
+  return new Response(response.body, {
+    headers: {
+      "Content-Type": response.headers.get("Content-Type") || "image/jpeg",
+      "Cache-Control": "private, max-age=300",
+    },
+  });
+});
+
 app.post("/api/inkjoy/devices/:deviceId/publish-album", async (c) => {
   const session = await readSession(c);
   requireInkjoy(session);
@@ -244,6 +302,36 @@ app.post("/api/inkjoy/devices/:deviceId/publish-album", async (c) => {
     },
   });
   return c.json(result.data ?? { ok: true });
+});
+
+// Raw-upload fallback for publish-album: Inkjoy's publish/album (and this endpoint too, for
+// that matter) only succeeds when the source image already exactly matches the device's
+// resolution — it does no server-side resizing. When a stored album photo doesn't match (most
+// photos imported via the native app, which aren't pre-cropped the way this app's own import
+// flow pre-crops), the client composites a correctly-sized copy and sends the fresh bytes here.
+app.post("/api/inkjoy/devices/:deviceId/publish", async (c) => {
+  const session = await readSession(c);
+  requireInkjoy(session);
+  const formData = await c.req.formData();
+  const file = formData.get("file");
+  const timezone = formData.get("timezone");
+
+  if (!(file instanceof File)) {
+    return c.json({ error: "file is required" }, 400);
+  }
+
+  const outbound = new FormData();
+  outbound.set("file", file, file.name || "photo.jpg");
+  if (typeof timezone === "string" && timezone) {
+    outbound.set("timezone", timezone);
+  }
+
+  await inkjoyRequest(`/api/v1/devices/${c.req.param("deviceId")}/publish`, session, {
+    method: "POST",
+    body: outbound,
+  });
+
+  return c.json({ ok: true });
 });
 
 app.get("/api/inkjoy/carousels", async (c) => {

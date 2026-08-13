@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Send, X } from "lucide-react";
 import type { AlbumPhoto, Device } from "../types";
+import { useImageRotation } from "../lib/useImageRotation";
 
 export function PhotoViewer(props: {
   photo: AlbumPhoto;
@@ -9,6 +10,8 @@ export function PhotoViewer(props: {
   onClose: () => void;
 }) {
   const src = props.photo.thumbnailUrl || props.photo.originUrl;
+  const rotation = useImageRotation(props.photo.originUrl);
+  const rotatedSideways = rotation === 90 || rotation === 270;
   const [pickingFrame, setPickingFrame] = useState(false);
 
   function handleSendClick() {
@@ -25,7 +28,23 @@ export function PhotoViewer(props: {
         <X size={20} />
       </button>
       <div className="photo-viewer-stage" onClick={(event) => event.stopPropagation()}>
-        {src ? <img src={src} alt="" /> : null}
+        {src ? (
+          <img
+            src={src}
+            alt=""
+            style={
+              rotation
+                ? {
+                    transform: `rotate(${rotation}deg)`,
+                    // 90/270 swap the image's visual axes, so swap the fit constraints too or a
+                    // landscape-shaped source would overflow the (now portrait-shaped) stage.
+                    maxWidth: rotatedSideways ? "82vh" : undefined,
+                    maxHeight: rotatedSideways ? "92vw" : undefined,
+                  }
+                : undefined
+            }
+          />
+        ) : null}
       </div>
 
       {props.devices.length ? (
