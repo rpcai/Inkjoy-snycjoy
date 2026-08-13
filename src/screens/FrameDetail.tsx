@@ -1,4 +1,5 @@
 import { ArrowLeft, Monitor } from "lucide-react";
+import { api } from "../lib/api";
 import type { Carousel, Device } from "../types";
 
 export function FrameDetail(props: {
@@ -28,7 +29,7 @@ export function FrameDetail(props: {
         <div className="frame-detail-hero">
           <div className={`device-frame frame-detail-bezel ${landscape ? "landscape" : ""}`}>
             {props.device.lastPlayThumbnailUrl ? (
-              <img src={props.device.lastPlayThumbnailUrl} alt="" />
+              <img src={api.devicePreviewUrl(props.device.lastPlayThumbnailUrl)} alt="" />
             ) : (
               <Monitor size={34} />
             )}

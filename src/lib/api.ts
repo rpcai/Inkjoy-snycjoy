@@ -107,6 +107,10 @@ export const api = {
     ),
   googleThumbnailUrl: (baseUrl: string) =>
     `/api/google/media?baseUrl=${encodeURIComponent(baseUrl)}&size=w256-h256-c`,
+  // Inkjoy's `-thumbnail` renditions strip EXIF orientation, so portrait photos render
+  // sideways; the same-key original (no suffix) keeps it and displays correctly.
+  devicePreviewUrl: (thumbnailUrl?: string) =>
+    thumbnailUrl ? thumbnailUrl.replace(/-thumbnail(\.[a-z0-9]+)(\?.*)?$/i, "$1$2") : thumbnailUrl,
   importGoogleToInkjoy: (albumId: string, items: PickedMediaItem[]) =>
     apiFetch<ImportResult>("/api/import/google-to-inkjoy", {
       method: "POST",
